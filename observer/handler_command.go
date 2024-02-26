@@ -80,7 +80,27 @@ func (oh *observer_handler) handleCommand(cmd messageCommand) error {
 		switch cmd.Name {
 		case "log":
 			// inspect node logs
-			v, err := oh.Call(inspectProcess, inspect.RequestInspectLog{})
+			levels := []gen.LogLevel{}
+			slevels, ok := cmd.Args["Levels"].([]any)
+			if ok == false {
+				oh.Log().Error("incorrect Args.Levels value in log subscribe command")
+			}
+			for _, l := range slevels {
+				s, _ := l.(string)
+				switch s {
+				case "debug":
+					levels = append(levels, gen.LogLevelDebug)
+				case "info":
+					levels = append(levels, gen.LogLevelInfo)
+				case "warning":
+					levels = append(levels, gen.LogLevelWarning)
+				case "error":
+					levels = append(levels, gen.LogLevelError)
+				case "panic":
+					levels = append(levels, gen.LogLevelPanic)
+				}
+			}
+			v, err := oh.Call(inspectProcess, inspect.RequestInspectLog{Levels: levels})
 			if err != nil {
 				oh.sendError(cmd.ID, cmd.CID, err)
 				return nil
