@@ -311,6 +311,44 @@ func (oh *observer_handler) handleCommand(cmd messageCommand) error {
 
 			consumer.subscriptions[response.Event.String()] = response.Event
 
+		case "meta_state":
+			vmeta := cmd.Args["ID"]
+			if vmeta == nil {
+				oh.sendError(cmd.ID, cmd.CID, errors.New("Args: {ID: is empty}"))
+				return nil
+			}
+			str, ok := vmeta.(string)
+			if ok == false {
+				oh.sendError(cmd.ID, cmd.CID, errors.New("Args: {ID: incorrect value}"))
+				return nil
+			}
+			meta, err := str2alias(consumer.node, consumer.creation, str)
+			if err != nil {
+				oh.sendError(cmd.ID, cmd.CID, err)
+				return nil
+			}
+
+			request := inspect.RequestInspectMetaState{
+				Meta: meta,
+			}
+
+			v, err := oh.Call(inspectProcess, request)
+			if err != nil {
+				oh.sendError(cmd.ID, cmd.CID, err)
+				return nil
+			}
+			response, ok := v.(inspect.ResponseInspectMetaState)
+			if ok == false {
+				oh.Log().Error("incorrect result (expected inspect.ResponseInspectMetaState): %#v", v)
+				return nil
+			}
+			oh.sendMessageResult(cmd.ID, cmd.CID, response)
+			if err := oh.subscribe(response.Event, cmd.ID); err != nil {
+				oh.sendError(cmd.ID, cmd.CID, err)
+				return nil
+			}
+
+			consumer.subscriptions[response.Event.String()] = response.Event
 		default:
 			oh.Log().Error("unknown subscription name %q (from %s)", cmd.Name, cmd.ID)
 			return nil
