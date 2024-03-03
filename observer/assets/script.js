@@ -98,6 +98,17 @@ document.getElementById('subscribeMeta').addEventListener('click', () => {
 }`
 });
 
+document.getElementById('subscribeMetaState').addEventListener('click', () => {
+    const messageArea = document.getElementById('message');
+	messageArea.value = `{
+    "CID": "`+self.crypto.randomUUID()+`",
+    "Command": "subscribe",
+    "Name": "meta_state",
+    "Args":
+      {"ID":"Alias#<4AD066C0.94927.24031.0>"}
+}`
+});
+
 document.getElementById('unsubscribe').addEventListener('click', () => {
     const messageArea = document.getElementById('message');
 	messageArea.value = `{
