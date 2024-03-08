@@ -29,9 +29,10 @@ type observerApp struct {
 }
 
 type Options struct {
-	Port     uint16
-	Handlers int
-	LogLevel gen.LogLevel
+	Port       uint16
+	Handlers   int
+	LogLevel   gen.LogLevel
+	Standalone bool
 }
 
 func (o *observerApp) Load(node gen.Node, args ...any) (gen.ApplicationSpec, error) {
@@ -41,8 +42,9 @@ func (o *observerApp) Load(node gen.Node, args ...any) (gen.ApplicationSpec, err
 		handlers = append(handlers, gen.Atom(name))
 	}
 	env := map[gen.Env]any{
-		"handlers": handlers,
-		"port":     o.options.Port,
+		"handlers":   handlers,
+		"port":       o.options.Port,
+		"standalone": o.options.Standalone,
 	}
 
 	return gen.ApplicationSpec{

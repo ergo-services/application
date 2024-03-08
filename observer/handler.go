@@ -42,9 +42,31 @@ func (oh *observer_handler) HandleMessage(from gen.PID, message any) error {
 			subscriptions: make(map[string]gen.Event),
 		}
 		oh.consumers[m.ID] = consumer
+		networkInfo, _ := oh.Node().Network().Info()
+		standalone := false
+		if v, exist := oh.Env("standalone"); exist {
+			standalone, _ = v.(bool)
+		}
 
-		// send observer version
-		buf, _ := json.Marshal(Version)
+		intro := struct {
+			Node    gen.Atom
+			Peers   []gen.Atom
+			Version gen.Version
+		}{
+			Peers:   []gen.Atom{},
+			Version: Version,
+		}
+
+		if len(networkInfo.Nodes) > 0 {
+			intro.Peers = networkInfo.Nodes
+		}
+
+		if standalone == false {
+			intro.Node = oh.Node().Name()
+		}
+
+		// send observer details
+		buf, _ := json.Marshal(intro)
 		wsmsg := websocket.Message{
 			Body: buf,
 		}
