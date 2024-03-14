@@ -32,6 +32,7 @@ func (oh *observer_handler) Init(args ...any) error {
 	oh.subscriptions = make(map[string]*subscription)
 	return nil
 }
+
 func (oh *observer_handler) HandleMessage(from gen.PID, message any) error {
 	switch m := message.(type) {
 
@@ -48,21 +49,26 @@ func (oh *observer_handler) HandleMessage(from gen.PID, message any) error {
 			standalone, _ = v.(bool)
 		}
 
+		type desc struct {
+			Node  gen.Atom
+			CRC32 string
+		}
+
 		intro := struct {
-			Node    gen.Atom
-			Peers   []gen.Atom
+			Node    desc
+			Peers   []desc
 			Version gen.Version
 		}{
-			Peers:   []gen.Atom{},
+			Peers:   []desc{},
 			Version: Version,
 		}
 
-		if len(networkInfo.Nodes) > 0 {
-			intro.Peers = networkInfo.Nodes
+		for _, node := range networkInfo.Nodes {
+			intro.Peers = append(intro.Peers, desc{node, node.CRC32()})
 		}
 
 		if standalone == false {
-			intro.Node = oh.Node().Name()
+			intro.Node = desc{oh.Node().Name(), oh.Node().Name().CRC32()}
 		}
 
 		// send observer details
