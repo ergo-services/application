@@ -27,7 +27,7 @@ func (w *web) Init(args ...any) (act.WebOptions, error) {
 
 	mux := http.NewServeMux()
 
-	fsroot, _ := fs.Sub(assets, "assets")
+	fsroot, _ := fs.Sub(assets, "web")
 	mux.Handle("/", http.FileServer(http.FS(fsroot)))
 
 	v, _ := w.Env("handlers")
