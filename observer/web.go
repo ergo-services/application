@@ -11,7 +11,7 @@ import (
 	"ergo.services/meta/websocket"
 )
 
-//go:embed assets/*
+//go:embed web/*
 var assets embed.FS
 
 func factory_web() gen.ProcessBehavior {
@@ -29,6 +29,7 @@ func (w *web) Init(args ...any) (act.WebOptions, error) {
 
 	fsroot, _ := fs.Sub(assets, "web")
 	mux.Handle("/", http.FileServer(http.FS(fsroot)))
+	mux.Handle("/*", http.FileServer(http.FS(fsroot)))
 
 	v, _ := w.Env("handlers")
 	handlers, _ := v.([]gen.Atom)
