@@ -50,7 +50,7 @@ func (oh *observer_handler) HandleMessage(from gen.PID, message any) error {
 		}
 
 		type desc struct {
-			Node  gen.Atom
+			Name  gen.Atom
 			CRC32 string
 		}
 
