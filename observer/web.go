@@ -29,6 +29,7 @@ func (w *web) Init(args ...any) (act.WebOptions, error) {
 
 	fsroot, _ := fs.Sub(assets, "web")
 	mux.Handle("/assets/", http.FileServer(http.FS(fsroot)))
+	mux.Handle("/console/", http.FileServer(http.FS(fsroot)))
 	index := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
 			r.URL.Path = "/"
