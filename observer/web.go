@@ -28,8 +28,14 @@ func (w *web) Init(args ...any) (act.WebOptions, error) {
 	mux := http.NewServeMux()
 
 	fsroot, _ := fs.Sub(assets, "web")
-	mux.Handle("/", http.FileServer(http.FS(fsroot)))
-	mux.Handle("/*", http.FileServer(http.FS(fsroot)))
+	mux.Handle("/assets/", http.FileServer(http.FS(fsroot)))
+	index := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
+			r.URL.Path = "/"
+			next.ServeHTTP(wr, r)
+		})
+	}
+	mux.Handle("/", index(http.FileServer(http.FS(fsroot))))
 
 	v, _ := w.Env("handlers")
 	handlers, _ := v.([]gen.Atom)
