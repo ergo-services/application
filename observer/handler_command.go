@@ -27,6 +27,11 @@ func (oh *observer_handler) handleCommand(cmd messageCommand) error {
 			return nil
 		}
 
+		if _, err := oh.Node().Network().GetNode(gen.Atom(cmd.Name)); err != nil {
+			oh.sendError(cmd.ID, cmd.CID, err)
+			return nil
+		}
+
 		inspectProcess := gen.ProcessID{
 			Name: inspect.Name,
 			Node: node,
