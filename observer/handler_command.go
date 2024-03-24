@@ -71,6 +71,20 @@ func (oh *observer_handler) handleCommand(cmd messageCommand) error {
 		consumer.creation = inspectNode.Creation
 		consumer.subscriptions[inspectNode.Event.String()] = inspectNode.Event
 
+	case "peers":
+		networkInfo, _ := oh.Node().Network().Info()
+		type desc struct {
+			Name  gen.Atom
+			CRC32 string
+		}
+
+		peers := []desc{}
+
+		for _, node := range networkInfo.Nodes {
+			peers = append(peers, desc{node, node.CRC32()})
+		}
+		oh.sendMessageResult(cmd.ID, cmd.CID, peers)
+
 	case "subscribe":
 		// check consumer
 		consumer, exist := oh.consumers[cmd.ID]
@@ -411,9 +425,19 @@ func (oh *observer_handler) handleCommand(cmd messageCommand) error {
 				oh.sendError(cmd.ID, cmd.CID, errors.New("Args: {Message: is empty}"))
 				return nil
 			}
+
+			vpriority := cmd.Args["Priority"]
+			priority := gen.MessagePriorityNormal
+			switch vpriority.(string) {
+			case "high":
+				priority = gen.MessagePriorityHigh
+			case "max":
+				priority = gen.MessagePriorityMax
+			}
 			request := inspect.RequestDoSend{
-				PID:     pid,
-				Message: vmessage,
+				PID:      pid,
+				Message:  vmessage,
+				Priority: priority,
 			}
 
 			v, err := oh.Call(inspectProcess, request)
