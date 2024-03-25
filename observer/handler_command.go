@@ -27,11 +27,9 @@ func (oh *observer_handler) handleCommand(cmd messageCommand) error {
 			return nil
 		}
 
-		if node != oh.Node().Name() {
-			if _, err := oh.Node().Network().GetNode(node); err != nil {
-				oh.sendError(cmd.ID, cmd.CID, err)
-				return nil
-			}
+		if err := oh.tryConnect(node, cmd.Args); err != nil {
+			oh.sendError(cmd.ID, cmd.CID, err)
+			return nil
 		}
 
 		inspectProcess := gen.ProcessID{
@@ -708,5 +706,38 @@ func (oh *observer_handler) handleCommand(cmd messageCommand) error {
 	default:
 		oh.Log().Error("unknown command from %s: %s", cmd.ID, cmd.Command)
 	}
+	return nil
+}
+
+func (oh *observer_handler) tryConnect(node gen.Atom, args map[string]any) error {
+
+	if node == oh.Node().Name() {
+		// itself
+		return nil
+	}
+
+	if _, err := oh.Node().Network().Node(node); err == nil {
+		// already connected
+		return nil
+	}
+
+	// making connection
+	nr := gen.NetworkRoute{}
+	if v, exist := args["Cookie"]; exist {
+		nr.Cookie, _ = v.(string)
+	}
+	if v, exist := args["Host"]; exist {
+		nr.Route.Host, _ = v.(string)
+	}
+	if v, exist := args["Port"]; exist {
+		f, _ := v.(float64)
+		nr.Route.Port = uint16(f)
+	}
+	if v, exist := args["TLS"]; exist {
+		nr.Route.TLS, _ = v.(bool)
+	}
+
+	oh.Node().Network().GetNodeWithRoute(node, nr)
+
 	return nil
 }
