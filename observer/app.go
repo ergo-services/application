@@ -8,13 +8,13 @@ import (
 )
 
 const (
-	defaultPort     uint16 = 9911
+	DefaultPort     uint16 = 9911
 	defaultHandlers int    = 3
 )
 
 func CreateApp(options Options) gen.ApplicationBehavior {
 	if options.Port == 0 {
-		options.Port = defaultPort
+		options.Port = DefaultPort
 	}
 	if options.Handlers < 1 {
 		options.Handlers = defaultHandlers
@@ -47,7 +47,7 @@ func (o *observerApp) Load(node gen.Node, args ...any) (gen.ApplicationSpec, err
 		"standalone": o.options.Standalone,
 	}
 
-	return gen.ApplicationSpec{
+	spec := gen.ApplicationSpec{
 		Name:    "observer_app",
 		Env:     env,
 		Version: Version,
@@ -61,11 +61,15 @@ func (o *observerApp) Load(node gen.Node, args ...any) (gen.ApplicationSpec, err
 				Factory: factory_handlers_sup,
 			},
 		},
-		Depends: gen.ApplicationDepends{
+	}
+
+	if o.options.Standalone == false {
+		spec.Depends = gen.ApplicationDepends{
 			Applications: []gen.Atom{system.Name},
-		},
-		LogLevel: o.options.LogLevel,
-	}, nil
+		}
+	}
+
+	return spec, nil
 }
 
 func (o *observerApp) Start(mode gen.ApplicationMode) {}

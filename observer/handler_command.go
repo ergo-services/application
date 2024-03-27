@@ -721,8 +721,19 @@ func (oh *observer_handler) tryConnect(node gen.Atom, args map[string]any) error
 		return nil
 	}
 
+	if len(args) == 0 {
+		// default
+		_, err := oh.Node().Network().GetNode(node)
+		return err
+	}
+
 	// making connection
 	nr := gen.NetworkRoute{}
+
+	// if reg, err := oh.Node().Network().Registrar(); err == nil {
+	// 	nr.Route, _ = reg.Resolver().Resolve(node)
+	// }
+
 	if v, exist := args["Cookie"]; exist {
 		nr.Cookie, _ = v.(string)
 	}
