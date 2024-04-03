@@ -48,6 +48,10 @@ func (w *web) Init(args ...any) (act.WebOptions, error) {
 	if port < 1 {
 		return options, errors.New("option 'port' is not set")
 	}
+	host := "localhost"
+	if v, exist := w.Env("host"); exist {
+		host, _ = v.(string)
+	}
 
 	wsopt := websocket.HandlerOptions{
 		ProcessPool: handlers,
@@ -62,6 +66,6 @@ func (w *web) Init(args ...any) (act.WebOptions, error) {
 
 	options.Handler = mux
 	options.Port = port
-	options.Host = "localhost"
+	options.Host = host
 	return options, nil
 }

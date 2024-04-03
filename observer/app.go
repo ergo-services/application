@@ -29,6 +29,7 @@ type observerApp struct {
 }
 
 type Options struct {
+	Host       string
 	Port       uint16
 	Handlers   int
 	LogLevel   gen.LogLevel
@@ -45,6 +46,9 @@ func (o *observerApp) Load(node gen.Node, args ...any) (gen.ApplicationSpec, err
 		"handlers":   handlers,
 		"port":       o.options.Port,
 		"standalone": o.options.Standalone,
+	}
+	if o.options.Host != "" {
+		env["host"] = o.options.Host
 	}
 
 	spec := gen.ApplicationSpec{
