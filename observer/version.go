@@ -19,7 +19,7 @@ func init() {
 
 var (
 	Version = gen.Version{
-		Name:    "Observer Tool",
+		Name:    "Observer Application",
 		Release: "0.1.0",
 		License: gen.LicenseMIT,
 	}
