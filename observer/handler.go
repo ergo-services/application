@@ -232,8 +232,8 @@ func str2alias(node gen.Atom, creation int64, s string) (gen.Alias, error) {
 	if err != nil {
 		return alias, err
 	}
-	alias.ID[0] = uint32(id1)
-	alias.ID[1] = uint32(id2)
-	alias.ID[2] = uint32(id3)
+	alias.ID[0] = uint64(id1)
+	alias.ID[1] = uint64(id2)
+	alias.ID[2] = uint64(id3)
 	return alias, nil
 }
