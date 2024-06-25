@@ -1,5 +1,5 @@
-ergo.services/ergo v1.999.225-0.20240603041303-2ed097599aea h1:Pzuvy1kOhwBwjrzDock5JuQKOdxW5F0tys6VkYdrBG0=
-ergo.services/ergo v1.999.225-0.20240603041303-2ed097599aea/go.mod h1:bLQ6PoO6Mz/8gVuzvPv3xfMfo1P9w6rZV1WnMXMeMdg=
+ergo.services/ergo v1.999.225-0.20240625165509-eaa647096b85 h1:NU+mTqEQ9VvD99bIM78/LJY2eYSy315nfsIKgU3JcPs=
+ergo.services/ergo v1.999.225-0.20240625165509-eaa647096b85/go.mod h1:bLQ6PoO6Mz/8gVuzvPv3xfMfo1P9w6rZV1WnMXMeMdg=
 ergo.services/meta v0.0.0-20240221070545-d828c9b7f13e h1:YbcZdXkFjf3TQoTfbA4l/Df2lhfvuKYT/XaRzk5ygWM=
 ergo.services/meta v0.0.0-20240221070545-d828c9b7f13e/go.mod h1:pdkUsher4Wyj1YXFcIylsGUgjf4dpBxi8dJlnpry88Y=
 github.com/gorilla/websocket v1.5.0 h1:PPwGk2jz7EePpoHN/+ClbZu8SPxiqlu12wZP/3sWmnc=

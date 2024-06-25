@@ -3,7 +3,7 @@ module ergo.services/application
 go 1.20
 
 require (
-	ergo.services/ergo v1.999.225-0.20240603041303-2ed097599aea
+	ergo.services/ergo v1.999.225-0.20240625165509-eaa647096b85
 	ergo.services/meta v0.0.0-20240221070545-d828c9b7f13e
 )
 
