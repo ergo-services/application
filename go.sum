@@ -1,6 +1,6 @@
-ergo.services/ergo v1.999.225-0.20240709061508-0f67ce5e0fdd h1:YtSKv08uDfnkk+5HvGZDheKiKItuomcJio7JSGSiQ2Q=
-ergo.services/ergo v1.999.225-0.20240709061508-0f67ce5e0fdd/go.mod h1:bLQ6PoO6Mz/8gVuzvPv3xfMfo1P9w6rZV1WnMXMeMdg=
-ergo.services/meta v0.0.0-20240709160930-c3c56d783f21 h1:MVDfW9WER3m2/vV0zVUpSB9Ko3SBPjVLuRNv5DNlRgo=
-ergo.services/meta v0.0.0-20240709160930-c3c56d783f21/go.mod h1:V2H+wk/dKOjRWph7Mmd5g3IpVEr58vZ4SUTs+K/hXhY=
+ergo.services/ergo v1.999.225-0.20240806171217-92f6f9df7e97 h1:DyCglNMGiuChPHVdxvR2S/erskNg+OYP4M707WVrRUo=
+ergo.services/ergo v1.999.225-0.20240806171217-92f6f9df7e97/go.mod h1:bLQ6PoO6Mz/8gVuzvPv3xfMfo1P9w6rZV1WnMXMeMdg=
+ergo.services/meta v0.0.0-20240807054511-a292a0f8045e h1:x++61nlwS/uChFjxUszGhdSriqTngEHtcaceoVGkgbE=
+ergo.services/meta v0.0.0-20240807054511-a292a0f8045e/go.mod h1:DJuV4msF9mzNJ7JNjhTKI7EPkj6iG3HCAh1m+SYLrUI=
 github.com/gorilla/websocket v1.5.0 h1:PPwGk2jz7EePpoHN/+ClbZu8SPxiqlu12wZP/3sWmnc=
 github.com/gorilla/websocket v1.5.0/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
