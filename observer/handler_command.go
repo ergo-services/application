@@ -516,7 +516,7 @@ func (oh *observer_handler) handleCommand(cmd messageCommand) error {
 			}
 			reason := gen.TerminateReasonNormal
 			switch sreason {
-			case "normal":
+			case "", "normal":
 				break
 			case "shutdown":
 				reason = gen.TerminateReasonShutdown
@@ -568,7 +568,7 @@ func (oh *observer_handler) handleCommand(cmd messageCommand) error {
 			}
 			reason := gen.TerminateReasonNormal
 			switch sreason {
-			case "normal":
+			case "", "normal":
 				break
 			case "shutdown":
 				reason = gen.TerminateReasonShutdown
