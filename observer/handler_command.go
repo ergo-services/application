@@ -368,6 +368,71 @@ func (oh *observer_handler) handleCommand(cmd messageCommand) error {
 			}
 
 			consumer.subscriptions[response.Event.String()] = response.Event
+
+		case "application_list":
+			v, err := oh.Call(inspectProcess, inspect.RequestInspectApplicationList{})
+			if err != nil {
+				oh.sendError(cmd.ID, cmd.CID, err)
+				return nil
+			}
+			response, ok := v.(inspect.ResponseInspectApplicationList)
+			if ok == false {
+				oh.Log().Error("incorrect result (expected inspect.ResponseInspectApplicationList): %#v", v)
+				return nil
+			}
+			oh.sendMessageResult(cmd.ID, cmd.CID, response)
+			if err := oh.subscribe(response.Event, cmd.ID); err != nil {
+				oh.sendError(cmd.ID, cmd.CID, err)
+				return nil
+			}
+
+			consumer.subscriptions[response.Event.String()] = response.Event
+
+		case "application_tree":
+			var application gen.Atom
+			var limit int = 1000 // default limit
+
+			vapp := cmd.Args["Application"]
+			if vapp == nil {
+				oh.sendError(cmd.ID, cmd.CID, errors.New("Args: {Application: is empty}"))
+				return nil
+			}
+			appName, ok := vapp.(string)
+			if ok == false {
+				oh.sendError(cmd.ID, cmd.CID, errors.New("Args: {Application: incorrect value}"))
+				return nil
+			}
+			application = gen.Atom(appName)
+
+			if vlimit := cmd.Args["Limit"]; vlimit != nil {
+				if flimit, ok := vlimit.(float64); ok {
+					limit = int(flimit)
+				}
+			}
+
+			request := inspect.RequestInspectApplicationTree{
+				Application: application,
+				Limit:       limit,
+			}
+
+			v, err := oh.Call(inspectProcess, request)
+			if err != nil {
+				oh.sendError(cmd.ID, cmd.CID, err)
+				return nil
+			}
+			response, ok := v.(inspect.ResponseInspectApplicationTree)
+			if ok == false {
+				oh.Log().Error("incorrect result (expected inspect.ResponseInspectApplicationTree): %#v", v)
+				return nil
+			}
+			oh.sendMessageResult(cmd.ID, cmd.CID, response)
+			if err := oh.subscribe(response.Event, cmd.ID); err != nil {
+				oh.sendError(cmd.ID, cmd.CID, err)
+				return nil
+			}
+
+			consumer.subscriptions[response.Event.String()] = response.Event
+
 		default:
 			oh.Log().Error("unknown subscription name %q (from %s)", cmd.Name, cmd.ID)
 			return nil
