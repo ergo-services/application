@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	ergo.services/ergo v1.999.310
-	ergo.services/meta v0.0.0-20240904054930-a97f6add8a78
+	ergo.services/meta/websocket v0.0.0-20251210205713-62e1376f88f2
 )
 
 require github.com/gorilla/websocket v1.5.0 // indirect
