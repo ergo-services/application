@@ -16,3 +16,9 @@ Doc: https://docs.ergo.services/extra-library/applications/observer
 Sidecar diagnostic application that exposes 46 inspection tools via MCP (Model Context Protocol) over HTTP. Enables AI agents (Claude Code, Claude Desktop) to diagnose performance bottlenecks, inspect processes, profile goroutines and heap, monitor metrics in real time, and trace issues across a cluster.
 
 Doc: https://docs.ergo.services/extra-library/applications/mcp
+
+## radar
+
+Sidecar application that bundles Kubernetes health probes and Prometheus metrics into a single HTTP endpoint. Uses `actor/health` and `actor/metrics` internally; actors interact through helper functions in the `radar` package without importing the underlying dependencies.
+
+Doc: https://docs.ergo.services/extra-library/applications/radar
