@@ -10,7 +10,7 @@ import (
 func registerNodeTools(r *toolRegistry) {
 	r.register(ToolDefinition{
 		Name:        "node_info",
-		Description: "Returns node information: name, uptime, version, process counts, memory usage, CPU time, registered names/aliases/events counts, event statistics, application counts.",
+		Description: "Returns node information: name, uptime, version, process counts, memory usage, CPU time, registered names/aliases/events counts, event statistics, application counts. LogMessages is [6]uint64 array of cumulative log message counts indexed by level: [0]=Trace, [1]=Debug, [2]=Info, [3]=Warning, [4]=Error, [5]=Panic.",
 		InputSchema: json.RawMessage(`{
 			"type": "object",
 			"properties": {},

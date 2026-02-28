@@ -3,9 +3,9 @@ module ergo.services/application/radar
 go 1.20
 
 require (
-	ergo.services/actor/health v0.0.0-20260227172052-fd87c7226410
-	ergo.services/actor/metrics v0.2.2-0.20260227172052-fd87c7226410
-	ergo.services/ergo v1.999.321-0.20260227171631-2787915bb93c
+	ergo.services/actor/health v0.0.0-20260228124857-1367134110a5
+	ergo.services/actor/metrics v0.2.2-0.20260228124857-1367134110a5
+	ergo.services/ergo v1.999.321-0.20260228124244-2875a5e225d7
 )
 
 require (
