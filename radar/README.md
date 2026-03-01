@@ -72,12 +72,17 @@ If the heartbeat is not received within the timeout, the signal is marked as dow
 Available health functions:
 
 ```go
+// Registration (sync Call, returns error)
 radar.RegisterService(process, signal, probe, timeout)
 radar.UnregisterService(process, signal)
+
+// Status updates (async Send)
 radar.Heartbeat(process, signal)
 radar.ServiceUp(process, signal)
 radar.ServiceDown(process, signal)
 ```
+
+Registration and unregistration are synchronous -- the call blocks until the health actor confirms the operation. This prevents race conditions where a heartbeat arrives before the signal is registered.
 
 Probe constants: `radar.ProbeLiveness`, `radar.ProbeReadiness`, `radar.ProbeStartup`. Combine with bitwise OR.
 
