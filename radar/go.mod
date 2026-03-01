@@ -3,8 +3,8 @@ module ergo.services/application/radar
 go 1.20
 
 require (
-	ergo.services/actor/health v0.0.0-20260228124857-1367134110a5
-	ergo.services/actor/metrics v0.2.2-0.20260228124857-1367134110a5
+	ergo.services/actor/health v0.0.0-20260301100207-6f53375a3cab
+	ergo.services/actor/metrics v0.2.2-0.20260301100207-6f53375a3cab
 	ergo.services/ergo v1.999.321-0.20260228124244-2875a5e225d7
 )
 
@@ -20,3 +20,5 @@ require (
 	golang.org/x/sys v0.22.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 )
+
+replace ergo.services/actor/health => ../../actor/health
