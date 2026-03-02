@@ -43,8 +43,9 @@ func (a *radarApp) Load(node gen.Node, args ...any) (gen.ApplicationSpec, error)
 	}
 
 	return gen.ApplicationSpec{
-		Name: Name,
-		Env:  env,
+		Name:        Name,
+		Description: "Prometheus metrics exporter and health check endpoints",
+		Env:         env,
 		Group: []gen.ApplicationMemberSpec{
 			{
 				Name:    nameSup,
