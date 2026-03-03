@@ -1,7 +1,7 @@
-ergo.services/actor/metrics v0.2.2-0.20260301100207-6f53375a3cab h1:Kkljw+/t1YWZG/289bDZV0qX6qlPLaY5/sYBiaihFdU=
-ergo.services/actor/metrics v0.2.2-0.20260301100207-6f53375a3cab/go.mod h1:OCPJ4msGucyIUyuJxxssoiw+beZny48ITN9qcrxNJ8Y=
-ergo.services/ergo v1.999.321-0.20260228124244-2875a5e225d7 h1:b9CnV67QiwD/YIcH0nzy3DKYXD4vnTZcLfJDD3KcGLI=
-ergo.services/ergo v1.999.321-0.20260228124244-2875a5e225d7/go.mod h1:bLQ6PoO6Mz/8gVuzvPv3xfMfo1P9w6rZV1WnMXMeMdg=
+ergo.services/actor/metrics v0.2.2-0.20260303125203-372f60caf93e h1:qCHtHm79zJmEBe2h2k7uBKWTdggdVLfQcuIIeG/yI+g=
+ergo.services/actor/metrics v0.2.2-0.20260303125203-372f60caf93e/go.mod h1:jRBvTayU+jAX2DbpMPGUBmD91guNyCG1Tcaisaarh/Q=
+ergo.services/ergo v1.999.321-0.20260303124935-f8efcaaf659b h1:ZiZBxlsWHGw/uluEuXo2nnQpog9esysSCgK460cHyg4=
+ergo.services/ergo v1.999.321-0.20260303124935-f8efcaaf659b/go.mod h1:bLQ6PoO6Mz/8gVuzvPv3xfMfo1P9w6rZV1WnMXMeMdg=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=

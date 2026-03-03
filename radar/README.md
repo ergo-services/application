@@ -88,6 +88,8 @@ Probe constants: `radar.ProbeLiveness`, `radar.ProbeReadiness`, `radar.ProbeStar
 
 ### Metrics
 
+All custom metrics automatically receive a `node` const label set to the node name. Do not include `"node"` in your variable label names -- it will cause a "duplicate label names" registration error.
+
 Register custom metrics and update them:
 
 ```go
