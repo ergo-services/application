@@ -57,6 +57,7 @@ func registerActionTools(r *toolRegistry) {
 					"description": "EDF-registered type name (full or short). If empty, sends raw JSON value"
 				},
 				"message": {
+					"type": "object",
 					"description": "Message data: JSON object with field values (for typed) or any JSON value (for raw)"
 				},
 				"important": {
@@ -84,6 +85,7 @@ func registerActionTools(r *toolRegistry) {
 					"description": "EDF-registered type name for the request. If empty, sends raw JSON value"
 				},
 				"request": {
+					"type": "object",
 					"description": "Request data: JSON object with field values (for typed) or any JSON value (for raw)"
 				},
 				"timeout": {
@@ -277,6 +279,18 @@ func toolCallProcess(w gen.Process, params json.RawMessage) (any, error) {
 
 // buildMessage constructs a typed or raw message from JSON params
 func buildMessage(typeName string, data json.RawMessage) (any, error) {
+	// Some MCP clients pass JSON objects as quoted strings.
+	// Detect and unwrap: "{\"Seq\":1}" -> {"Seq":1}
+	if len(data) > 1 && data[0] == '"' {
+		var s string
+		if json.Unmarshal(data, &s) == nil {
+			trimmed := strings.TrimSpace(s)
+			if len(trimmed) > 0 && (trimmed[0] == '{' || trimmed[0] == '[') {
+				data = json.RawMessage(trimmed)
+			}
+		}
+	}
+
 	if typeName != "" {
 		t, ok := lookupType(typeName)
 		if ok == false {
