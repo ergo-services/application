@@ -108,6 +108,7 @@ func (s *sampler) Init(args ...any) error {
 	s.config = args[0].(samplerConfig)
 	s.registry = args[1].(*toolRegistry)
 	s.buffer = newRingBuffer(s.config.BufferSize)
+	s.sequence = 1
 	s.startedAt = time.Now()
 	if s.config.Duration > 0 {
 		s.expiresAt = s.startedAt.Add(s.config.Duration)
@@ -186,6 +187,18 @@ func (s *sampler) HandleMessage(from gen.PID, message any) error {
 
 	case messageSamplerLinger:
 		return gen.TerminateReasonNormal
+
+	default:
+		s.buffer.push(SampleEntry{
+			Sequence:  s.sequence,
+			Timestamp: time.Now(),
+			Data: map[string]any{
+				"from":    from.String(),
+				"type":    fmt.Sprintf("%T", message),
+				"message": marshalSafe(message),
+			},
+		})
+		s.sequence++
 	}
 	return nil
 }
@@ -213,14 +226,14 @@ func (s *sampler) HandleEvent(message gen.MessageEvent) error {
 		Timestamp: time.Unix(0, message.Timestamp),
 		Data: map[string]any{
 			"event":   fmt.Sprintf("%s@%s", message.Event.Name, message.Event.Node),
-			"message": message.Message,
+			"message": marshalSafe(message.Message),
 		},
 	})
 	s.sequence++
 	return nil
 }
 
-// HandleCall handles SampleReadRequest to return collected samples.
+// HandleCall handles SampleReadRequest and captures unknown requests.
 func (s *sampler) HandleCall(from gen.PID, ref gen.Ref, request any) (any, error) {
 	switch r := request.(type) {
 	case SampleReadRequest:
@@ -233,8 +246,19 @@ func (s *sampler) HandleCall(from gen.PID, ref gen.Ref, request any) (any, error
 			Completed: s.completed,
 			Samples:   entries,
 		}, nil
+	default:
+		s.buffer.push(SampleEntry{
+			Sequence:  s.sequence,
+			Timestamp: time.Now(),
+			Data: map[string]any{
+				"from":    from.String(),
+				"type":    fmt.Sprintf("%T", r),
+				"request": marshalSafe(r),
+			},
+		})
+		s.sequence++
+		return "captured", nil
 	}
-	return nil, nil
 }
 
 func (s *sampler) startLinger() {
@@ -362,6 +386,21 @@ func (s *sampler) Terminate(reason error) {
 	if s.loggerName != "" {
 		s.Node().LoggerDelete(s.loggerName)
 	}
+}
+
+// marshalSafe converts a value to a JSON-friendly representation.
+// Tries json.Marshal → json.Unmarshal to produce maps/slices/primitives.
+// Falls back to fmt.Sprintf if the type is not JSON-serializable.
+func marshalSafe(v any) any {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return fmt.Sprintf("%v", v)
+	}
+	var result any
+	if json.Unmarshal(b, &result) != nil {
+		return fmt.Sprintf("%v", v)
+	}
+	return result
 }
 
 // buildLogEntry creates a log entry map from a MessageLog, filtering by source.
