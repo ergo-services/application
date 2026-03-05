@@ -75,8 +75,11 @@ mcp.Options{
 ### Claude Code
 
 ```bash
-# 1. Add MCP server
+# Add MCP server (current project only)
 claude mcp add --transport http ergo http://localhost:9922/mcp
+
+# Available from any directory
+claude mcp add --transport http ergo --scope user http://localhost:9922/mcp
 
 # With authentication
 claude mcp add --transport http ergo http://localhost:9922/mcp \
