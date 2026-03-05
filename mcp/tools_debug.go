@@ -6,7 +6,11 @@ import (
 	"fmt"
 	"runtime"
 	"runtime/pprof"
+	"sort"
 	"strings"
+	"time"
+
+	pprofprofile "github.com/google/pprof/profile"
 
 	"ergo.services/ergo/gen"
 )
@@ -24,11 +28,19 @@ func registerDebugTools(r *toolRegistry) {
 				},
 				"limit": {
 					"type": "integer",
-					"description": "Maximum number of goroutines to return (default: 50). Ignored when pid is specified"
+					"description": "Maximum number of items to return after filtering (default: 50). Ignored when pid is specified"
 				},
 				"debug": {
 					"type": "integer",
 					"description": "Debug level: 1 = summary (count per stack), 2 = full traces (default: 2)"
+				},
+				"filter": {
+					"type": "string",
+					"description": "Include only goroutines whose stack contains this substring (server-side filtering)"
+				},
+				"exclude": {
+					"type": "string",
+					"description": "Exclude goroutines whose stack contains this substring (applied after filter)"
 				}
 			}
 		}`),
@@ -36,14 +48,49 @@ func registerDebugTools(r *toolRegistry) {
 	})
 
 	r.register(ToolDefinition{
-		Name:        "pprof_heap",
-		Description: "Returns heap memory profile showing top memory allocators.",
+		Name:        "pprof_cpu",
+		Description: "Collects CPU profile for a given duration and returns top functions by CPU usage. The worker is blocked during collection.",
 		InputSchema: json.RawMessage(`{
 			"type": "object",
 			"properties": {
-				"debug": {
+				"duration": {
 					"type": "integer",
-					"description": "Debug level: 1 = human-readable (default: 1)"
+					"description": "Profiling duration in seconds (default: 5, max: 30)"
+				},
+				"limit": {
+					"type": "integer",
+					"description": "Number of top functions to return (default: 20)"
+				},
+				"filter": {
+					"type": "string",
+					"description": "Include only functions whose name contains this substring"
+				},
+				"exclude": {
+					"type": "string",
+					"description": "Exclude functions whose name contains this substring"
+				}
+			}
+		}`),
+		handler: toolPprofCPU,
+	})
+
+	r.register(ToolDefinition{
+		Name:        "pprof_heap",
+		Description: "Returns heap memory profile showing top memory allocators by bytes in use.",
+		InputSchema: json.RawMessage(`{
+			"type": "object",
+			"properties": {
+				"limit": {
+					"type": "integer",
+					"description": "Number of top functions to return (default: 20)"
+				},
+				"filter": {
+					"type": "string",
+					"description": "Include only functions whose name contains this substring"
+				},
+				"exclude": {
+					"type": "string",
+					"description": "Exclude functions whose name contains this substring"
 				}
 			}
 		}`),
@@ -63,9 +110,11 @@ func registerDebugTools(r *toolRegistry) {
 }
 
 type pprofGoroutinesParams struct {
-	PID   string `json:"pid"`
-	Limit int    `json:"limit"`
-	Debug int    `json:"debug"`
+	PID     string `json:"pid"`
+	Limit   int    `json:"limit"`
+	Debug   int    `json:"debug"`
+	Filter  string `json:"filter"`
+	Exclude string `json:"exclude"`
 }
 
 func toolPprofGoroutines(w gen.Process, params json.RawMessage) (any, error) {
@@ -96,30 +145,194 @@ func toolPprofGoroutines(w gen.Process, params json.RawMessage) (any, error) {
 	}
 
 	dump := buf.String()
+	total := profile.Count()
 
-	// For debug=1: lines are compact, limit by line count
-	if p.Debug == 1 {
-		lines := strings.Split(dump, "\n")
-		if len(lines) > p.Limit*3 {
-			lines = lines[:p.Limit*3]
-			lines = append(lines, fmt.Sprintf("\n... truncated (showing ~%d of %d goroutines, use limit parameter to see more)", p.Limit, profile.Count()))
+	// Split into blocks: debug=1 groups by "\n\n", debug=2 goroutines by "\n\n"
+	blocks := strings.Split(dump, "\n\n")
+
+	// Filter and exclude
+	var filtered []string
+	for _, block := range blocks {
+		if strings.TrimSpace(block) == "" {
+			continue
 		}
-		return textResult(strings.Join(lines, "\n")), nil
+		if p.Filter != "" && strings.Contains(block, p.Filter) == false {
+			continue
+		}
+		if p.Exclude != "" && strings.Contains(block, p.Exclude) {
+			continue
+		}
+		filtered = append(filtered, block)
 	}
 
-	// For debug=2: split by goroutine blocks, limit by block count
-	goroutines := strings.Split(dump, "\n\n")
-	total := len(goroutines)
-	if total > p.Limit {
-		goroutines = goroutines[:p.Limit]
-		goroutines = append(goroutines, fmt.Sprintf("... truncated (showing %d of %d goroutines, use limit parameter to see more)", p.Limit, total))
+	matched := len(filtered)
+	showing := matched
+	if showing > p.Limit {
+		filtered = filtered[:p.Limit]
+		showing = p.Limit
 	}
 
-	return textResult(strings.Join(goroutines, "\n\n")), nil
+	// Build header
+	header := fmt.Sprintf("goroutine profile: total %d", total)
+	if p.Filter != "" || p.Exclude != "" {
+		header += fmt.Sprintf(", matched %d", matched)
+	}
+	header += fmt.Sprintf(", showing %d", showing)
+
+	result := header + "\n\n" + strings.Join(filtered, "\n\n")
+	if showing < matched {
+		result += fmt.Sprintf("\n\n... %d more matched goroutines not shown", matched-showing)
+	}
+
+	return textResult(result), nil
+}
+
+type pprofCPUParams struct {
+	Duration int    `json:"duration"`
+	Limit    int    `json:"limit"`
+	Filter   string `json:"filter"`
+	Exclude  string `json:"exclude"`
+}
+
+func toolPprofCPU(w gen.Process, params json.RawMessage) (any, error) {
+	var p pprofCPUParams
+	if len(params) > 0 {
+		json.Unmarshal(params, &p)
+	}
+	if p.Duration < 1 {
+		p.Duration = 5
+	}
+	if p.Duration > 30 {
+		p.Duration = 30
+	}
+	if p.Limit < 1 {
+		p.Limit = 20
+	}
+
+	var buf bytes.Buffer
+	if err := pprof.StartCPUProfile(&buf); err != nil {
+		return nil, fmt.Errorf("failed to start CPU profile: %w", err)
+	}
+	time.Sleep(time.Duration(p.Duration) * time.Second)
+	pprof.StopCPUProfile()
+
+	prof, err := pprofprofile.Parse(&buf)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse CPU profile: %w", err)
+	}
+
+	// Aggregate samples by function
+	type funcStat struct {
+		Name    string
+		Flat    int64
+		Cum     int64
+		Samples int
+	}
+	flatByFunc := make(map[string]*funcStat)
+	var totalSamples int64
+
+	for _, sample := range prof.Sample {
+		if len(sample.Value) == 0 || len(sample.Location) == 0 {
+			continue
+		}
+		value := sample.Value[len(sample.Value)-1] // cpu nanoseconds
+		totalSamples += value
+
+		// Flat: only the top function
+		if fn := topFunction(sample); fn != "" {
+			s, ok := flatByFunc[fn]
+			if ok == false {
+				s = &funcStat{Name: fn}
+				flatByFunc[fn] = s
+			}
+			s.Flat += value
+			s.Samples++
+		}
+
+		// Cum: all functions in the stack
+		seen := make(map[string]bool)
+		for _, loc := range sample.Location {
+			for _, line := range loc.Line {
+				if line.Function == nil {
+					continue
+				}
+				fn := line.Function.Name
+				if seen[fn] {
+					continue
+				}
+				seen[fn] = true
+				s, ok := flatByFunc[fn]
+				if ok == false {
+					s = &funcStat{Name: fn}
+					flatByFunc[fn] = s
+				}
+				s.Cum += value
+			}
+		}
+	}
+
+	// Collect, filter, sort
+	var stats []*funcStat
+	for _, s := range flatByFunc {
+		if p.Filter != "" && strings.Contains(s.Name, p.Filter) == false {
+			continue
+		}
+		if p.Exclude != "" && strings.Contains(s.Name, p.Exclude) {
+			continue
+		}
+		stats = append(stats, s)
+	}
+
+	sort.Slice(stats, func(i, j int) bool {
+		return stats[i].Flat > stats[j].Flat
+	})
+
+	matched := len(stats)
+	if matched > p.Limit {
+		stats = stats[:p.Limit]
+	}
+	showing := len(stats)
+
+	// Format output
+	var result strings.Builder
+	fmt.Fprintf(&result, "CPU profile: %d seconds, %d total samples", p.Duration, totalSamples)
+	if p.Filter != "" || p.Exclude != "" {
+		fmt.Fprintf(&result, ", matched %d functions", matched)
+	}
+	fmt.Fprintf(&result, ", showing %d\n\n", showing)
+	fmt.Fprintf(&result, "%-8s %-8s %s\n", "flat%", "cum%", "function")
+
+	for _, s := range stats {
+		flatPct := float64(0)
+		cumPct := float64(0)
+		if totalSamples > 0 {
+			flatPct = float64(s.Flat) / float64(totalSamples) * 100
+			cumPct = float64(s.Cum) / float64(totalSamples) * 100
+		}
+		fmt.Fprintf(&result, "%-8.1f %-8.1f %s\n", flatPct, cumPct, s.Name)
+	}
+
+	return textResult(result.String()), nil
+}
+
+func topFunction(sample *pprofprofile.Sample) string {
+	if len(sample.Location) == 0 {
+		return ""
+	}
+	loc := sample.Location[0]
+	if len(loc.Line) == 0 {
+		return ""
+	}
+	if loc.Line[0].Function == nil {
+		return ""
+	}
+	return loc.Line[0].Function.Name
 }
 
 type pprofHeapParams struct {
-	Debug int `json:"debug"`
+	Limit   int    `json:"limit"`
+	Filter  string `json:"filter"`
+	Exclude string `json:"exclude"`
 }
 
 func toolPprofHeap(w gen.Process, params json.RawMessage) (any, error) {
@@ -127,8 +340,8 @@ func toolPprofHeap(w gen.Process, params json.RawMessage) (any, error) {
 	if len(params) > 0 {
 		json.Unmarshal(params, &p)
 	}
-	if p.Debug < 1 {
-		p.Debug = 1
+	if p.Limit < 1 {
+		p.Limit = 20
 	}
 
 	profile := pprof.Lookup("heap")
@@ -137,10 +350,95 @@ func toolPprofHeap(w gen.Process, params json.RawMessage) (any, error) {
 	}
 
 	var buf bytes.Buffer
-	if err := profile.WriteTo(&buf, p.Debug); err != nil {
+	if err := profile.WriteTo(&buf, 0); err != nil {
 		return nil, fmt.Errorf("failed to write heap profile: %w", err)
 	}
-	return textResult(buf.String()), nil
+
+	prof, err := pprofprofile.Parse(&buf)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse heap profile: %w", err)
+	}
+
+	// Aggregate by function: inuse bytes and alloc bytes
+	type heapStat struct {
+		Name       string
+		InuseBytes int64
+		AllocBytes int64
+	}
+	byFunc := make(map[string]*heapStat)
+
+	var totalInuse int64
+	for _, sample := range prof.Sample {
+		if len(sample.Value) < 4 || len(sample.Location) == 0 {
+			continue
+		}
+		// heap profile values: alloc_objects, alloc_space, inuse_objects, inuse_space
+		inuseBytes := sample.Value[3]
+		allocBytes := sample.Value[1]
+		totalInuse += inuseBytes
+
+		fn := topFunction(sample)
+		if fn == "" {
+			continue
+		}
+		s, ok := byFunc[fn]
+		if ok == false {
+			s = &heapStat{Name: fn}
+			byFunc[fn] = s
+		}
+		s.InuseBytes += inuseBytes
+		s.AllocBytes += allocBytes
+	}
+
+	// Collect, filter, sort
+	var stats []*heapStat
+	for _, s := range byFunc {
+		if p.Filter != "" && strings.Contains(s.Name, p.Filter) == false {
+			continue
+		}
+		if p.Exclude != "" && strings.Contains(s.Name, p.Exclude) {
+			continue
+		}
+		stats = append(stats, s)
+	}
+
+	sort.Slice(stats, func(i, j int) bool {
+		return stats[i].InuseBytes > stats[j].InuseBytes
+	})
+
+	matched := len(stats)
+	if matched > p.Limit {
+		stats = stats[:p.Limit]
+	}
+	showing := len(stats)
+
+	var result strings.Builder
+	fmt.Fprintf(&result, "heap profile: total inuse %s", formatBytes(totalInuse))
+	if p.Filter != "" || p.Exclude != "" {
+		fmt.Fprintf(&result, ", matched %d functions", matched)
+	}
+	fmt.Fprintf(&result, ", showing %d\n\n", showing)
+	fmt.Fprintf(&result, "%-12s %-12s %s\n", "inuse", "alloc", "function")
+
+	for _, s := range stats {
+		fmt.Fprintf(&result, "%-12s %-12s %s\n",
+			formatBytes(s.InuseBytes), formatBytes(s.AllocBytes), s.Name)
+	}
+
+	return textResult(result.String()), nil
+}
+
+func formatBytes(b int64) string {
+	switch {
+	case b >= 1<<30:
+		return fmt.Sprintf("%.1fGB", float64(b)/float64(1<<30))
+	case b >= 1<<20:
+		return fmt.Sprintf("%.1fMB", float64(b)/float64(1<<20))
+	case b >= 1<<10:
+		return fmt.Sprintf("%.1fKB", float64(b)/float64(1<<10))
+	default:
+		return fmt.Sprintf("%dB", b)
+	}
 }
 
 type runtimeStatsResult struct {

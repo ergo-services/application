@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"ergo.services/ergo/gen"
 )
@@ -152,6 +153,22 @@ func registerNetworkTools(r *toolRegistry) {
 			"required": ["name"]
 		}`),
 		handler: toolNetworkDisconnect,
+	})
+
+	r.register(ToolDefinition{
+		Name:        "network_ping",
+		Description: "Ping a remote node through the full network path (flusher, TCP, remote MCP, response). Returns round-trip time. Requires MCP application running on the remote node.",
+		InputSchema: json.RawMessage(`{
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string",
+					"description": "Remote node name to ping"
+				}
+			},
+			"required": ["name"]
+		}`),
+		handler: toolNetworkPing,
 	})
 }
 
@@ -348,4 +365,30 @@ func toolNetworkDisconnect(w gen.Process, params json.RawMessage) (any, error) {
 
 	node.Disconnect()
 	return textResult(fmt.Sprintf("disconnected from %s", p.Name)), nil
+}
+
+type networkPingParams struct {
+	Name string `json:"name"`
+}
+
+func toolNetworkPing(w gen.Process, params json.RawMessage) (any, error) {
+	var p networkPingParams
+	if err := json.Unmarshal(params, &p); err != nil {
+		return nil, fmt.Errorf("invalid params: %w", err)
+	}
+
+	target := gen.ProcessID{Name: PoolName, Node: gen.Atom(p.Name)}
+	start := time.Now()
+	_, err := w.CallWithTimeout(target, ToolCallRequest{
+		Tool:   "runtime_stats",
+		Params: "{}",
+	}, 5)
+	rtt := time.Since(start)
+
+	if err != nil {
+		return nil, fmt.Errorf("ping %s failed: %w", p.Name, err)
+	}
+
+	result := fmt.Sprintf("ping %s: rtt %.2fms", p.Name, float64(rtt.Microseconds())/1000)
+	return textResult(result), nil
 }

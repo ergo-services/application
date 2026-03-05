@@ -139,12 +139,12 @@ func (w *MCPWorker) handleToolsCall(writer http.ResponseWriter, req jsonrpcReque
 		return
 	}
 
-	// Check for remote node
-	targetNode := extractNodeParam(p.Arguments)
+	// Check for remote node and timeout
+	pp := extractProxyParams(p.Arguments)
 
-	if targetNode != "" && gen.Atom(targetNode) != w.Node().Name() {
+	if pp.Node != "" && gen.Atom(pp.Node) != w.Node().Name() {
 		// Remote call -- proxy to remote MCPPool
-		w.handleRemoteToolCall(writer, req, p, gen.Atom(targetNode))
+		w.handleRemoteToolCall(writer, req, p, gen.Atom(pp.Node), pp.Timeout)
 		return
 	}
 
@@ -157,13 +157,16 @@ func (w *MCPWorker) handleToolsCall(writer http.ResponseWriter, req jsonrpcReque
 	writeJSON(writer, newSuccessResponse(req.ID, result))
 }
 
-func (w *MCPWorker) handleRemoteToolCall(writer http.ResponseWriter, req jsonrpcRequest, p toolsCallParams, targetNode gen.Atom) {
+func (w *MCPWorker) handleRemoteToolCall(writer http.ResponseWriter, req jsonrpcRequest, p toolsCallParams, targetNode gen.Atom, timeout int) {
+	if timeout < 1 {
+		timeout = 30
+	}
 	// Proxy to remote MCPPool
 	target := gen.ProcessID{Name: PoolName, Node: targetNode}
 	result, err := w.CallWithTimeout(target, ToolCallRequest{
 		Tool:   p.Name,
 		Params: rawToString(p.Arguments),
-	}, 30)
+	}, timeout)
 
 	if err != nil {
 		writeJSONRPCError(writer, req.ID, errInternalError,

@@ -1,6 +1,6 @@
 # MCP Application
 
-Sidecar diagnostic application for Ergo Framework. Runs inside your node as a regular Ergo application and exposes 46 inspection tools via MCP (Model Context Protocol) over HTTP. Enables AI agents to diagnose performance bottlenecks, inspect processes, profile goroutines and heap, monitor metrics in real time, and trace issues across a cluster -- without restarting or redeploying the node.
+Sidecar diagnostic application for Ergo Framework. Runs inside your node as a regular Ergo application and exposes 48 inspection tools via MCP (Model Context Protocol) over HTTP. Enables AI agents to diagnose performance bottlenecks, inspect processes, profile CPU/heap/goroutines, monitor metrics in real time, and trace issues across a cluster -- without restarting or redeploying the node.
 
 Two deployment modes: **entry point** (with HTTP listener) and **agent** (no HTTP, accessible via cluster proxy). A single entry point node gives access to every node in the cluster that runs MCP in agent mode -- one HTTP endpoint to diagnose them all.
 
@@ -12,11 +12,11 @@ mcp.CreateApp(mcp.Options{Port: 9922})
 ## Features
 
 - **Zero-friction setup**: sidecar application -- add to `gen.NodeOptions.Applications` and it works
-- **46 diagnostic tools**: processes, applications, events, network, cron, registrar, Go runtime
-- **Process-level profiling**: goroutine stack traces by PID (with `-tags=pprof`), heap profiling, runtime stats
+- **48 diagnostic tools**: processes, applications, events, network, cron, registrar, Go runtime
+- **Profiling**: CPU profiling (duration-based), heap analysis with top allocators, goroutine stack traces by PID (with `-tags=pprof`). Server-side `filter`/`exclude` for targeted analysis on remote nodes
 - **Active sampling**: periodically call any tool into a ring buffer -- monitor trends over time
 - **Passive sampling**: capture log streams and event publications as they happen
-- **Cluster-wide proxy**: every tool works on remote nodes -- one HTTP entry point for the entire cluster
+- **Cluster-wide proxy**: every tool works on remote nodes with configurable timeout -- one HTTP entry point for the entire cluster. Network ping for connection health checks
 - **Action tools**: send messages and make sync calls with typed payloads from EDF registry, terminate processes gracefully or forcefully
 - **Agent mode**: `Port: 0` -- no HTTP listener, but fully accessible via cluster proxy from another node
 
@@ -100,7 +100,7 @@ The prefix `mcp__ergo` matches the server name from the `claude mcp add` command
 
 ## Available Tools
 
-Every tool accepts an optional `node` parameter for [cluster proxy](#cluster-proxy).
+Every tool accepts optional `node` parameter for [cluster proxy](#cluster-proxy) and `timeout` parameter (seconds, default 30, max 120) for remote calls.
 
 ### Node (2)
 
@@ -136,17 +136,18 @@ Every tool accepts an optional `node` parameter for [cluster proxy](#cluster-pro
 | `event_list` | Events with subscriber count, message stats, buffer, notify mode. Filters: name, producer (PID or process name), notify, subscribers, published, utilization_state. Sorting: subscribers, published, local_sent, remote_sent |
 | `event_info` | Detailed info about a specific event: producer, subscribers, message counts |
 
-### Network (7)
+### Network (8)
 
 | Tool | Description |
 |------|-------------|
-| `network_info` | Mode, flags, max message size, acceptors, routes |
+| `network_info` | Mode, flags, max message size, acceptors, routes, connections established/lost |
 | `network_nodes` | Connected remote nodes with traffic stats. Filters: name, uptime, messages/bytes |
-| `network_node_info` | Detailed info about one remote node |
+| `network_node_info` | Detailed info about one remote node: pool size, messages/bytes in/out, reconnections |
 | `network_acceptors` | Listening ports configuration |
 | `network_connect` | Connect to a remote node via registrar/routes |
 | `network_connect_route` | Connect with explicit host:port, TLS, cookie |
 | `network_disconnect` | Disconnect from a remote node |
+| `network_ping` | Ping remote node through full path (flusher, TCP, remote MCP, response). Returns RTT |
 
 ### Cron (3)
 
@@ -166,23 +167,24 @@ Every tool accepts an optional `node` parameter for [cluster proxy](#cluster-pro
 | `registrar_resolve_app` | Which nodes run a specific application |
 | `cluster_nodes` | All known nodes: self, connected, discovered |
 
-### Debug (3)
+### Debug (4)
 
 | Tool | Description |
 |------|-------------|
-| `pprof_goroutines` | Goroutine profile. With `pid`: per-process stack trace (requires `-tags=pprof`). Without: all goroutines. Sleeping processes park their goroutine -- use `sample_start` to poll |
-| `pprof_heap` | Heap memory profile, top allocators |
+| `pprof_goroutines` | Goroutine profile with `filter`/`exclude` (substring match) and `limit`. Response header: `total N, matched M, showing K`. With `pid`: per-process stack trace (requires `-tags=pprof`). Sleeping processes park their goroutine -- use `sample_start` to poll |
+| `pprof_cpu` | CPU profile for a given duration (default 5s, max 30s). Returns top functions by CPU usage. Supports `filter`/`exclude`/`limit` |
+| `pprof_heap` | Heap memory profile showing top allocators by bytes in use. Columns: inuse (live) and alloc (cumulative). Supports `filter`/`exclude`/`limit` |
 | `runtime_stats` | Goroutine count, heap, GC, CPU stats |
 
 ### Sampler (5)
 
 | Tool | Description |
 |------|-------------|
-| `sample_start` | Active sampler: periodically call any tool into a ring buffer. Params: tool, arguments, interval, count, duration, max_errors |
-| `sample_listen` | Passive sampler: capture log messages and/or event publications |
-| `sample_read` | Read collected entries (incremental via `since` parameter) |
-| `sample_stop` | Stop a running sampler |
-| `sample_list` | List active samplers with pid, description, status, owner, samples, uptime, deadline, remaining, progress, errors |
+| `sample_start` | Active sampler: periodically call any tool into a ring buffer. Params: tool, arguments, interval, count, duration, max_errors, linger_sec |
+| `sample_listen` | Passive sampler: capture log messages and/or event publications. Params: log_levels, log_source, event, duration, linger_sec |
+| `sample_read` | Read collected entries (incremental via `since` parameter). Works during linger period after completion |
+| `sample_stop` | Stop a running sampler immediately (no linger) |
+| `sample_list` | List active/lingering samplers with status (running, completed lingering Ns, completed) |
 
 ### Log Level (3)
 
@@ -205,7 +207,7 @@ Every tool accepts an optional `node` parameter for [cluster proxy](#cluster-pro
 
 ## Sampler
 
-Samplers collect data into ring buffers that agents read via `sample_read`. Two modes: **active** (periodic tool calls) and **passive** (event-driven capture). All samplers are time-limited (default 60s, max 1 hour).
+Samplers collect data into ring buffers that agents read via `sample_read`. Two modes: **active** (periodic tool calls) and **passive** (event-driven capture). All samplers are time-limited (default 60s, max 1 hour). After completion, samplers **linger** (default 30s) so agents can retrieve data before the process terminates. `sample_stop` terminates immediately without linger.
 
 ### Active Sampler (sample_start)
 
@@ -226,6 +228,8 @@ sample_start tool=pprof_goroutines arguments={"pid":"<XXX.0.1005>"} interval_ms=
 ```
 
 **Error handling**: `max_errors=0` (default) ignores errors and keeps retrying. `max_errors=N` stops after N consecutive failures. Duration always applies as upper bound.
+
+**Linger**: `linger_sec=30` (default). After completion (count reached, duration expired, or max_errors exceeded), sampler stays alive for data retrieval. `sample_list` shows `"status": "completed, lingering 25s"`. `sample_stop` bypasses linger and terminates immediately.
 
 ### Passive Sampler (sample_listen)
 
@@ -300,12 +304,11 @@ Response:
     "id": "mcp_sampler_703a3bd5",
     "pid": "<4FF6A515.0.1015>",
     "description": "runtime_stats every 1s",
-    "status": "running",
+    "status": "completed, lingering 25s",
     "owner": "mynode@localhost",
-    "samples": "6 collected, buffer 6/256",
-    "progress": "6/20 samples",
-    "uptime": "6s",
-    "remaining": "54s"
+    "samples": "20 collected, buffer 20/256",
+    "progress": "20/20 samples",
+    "uptime": "25s"
   }
 ]
 ```

@@ -11,6 +11,7 @@ import (
 
 type messageSamplerTick struct{}
 type messageSamplerStop struct{}
+type messageSamplerLinger struct{}
 
 // samplerMode distinguishes active (periodic tool calls) from passive (event-driven) samplers.
 type samplerMode string
@@ -26,6 +27,7 @@ type samplerConfig struct {
 	Interval   time.Duration
 	Count      int           // 0 = until stopped
 	Duration   time.Duration // 0 = use count
+	Linger     time.Duration // how long to stay alive after completion for data retrieval
 	MaxErrors  int           // 0 = ignore errors (keep retrying), >0 = stop after N consecutive errors
 	BufferSize int
 	Owner      string // node name that initiated the sampler
@@ -95,7 +97,8 @@ type sampler struct {
 	sequence   int
 	errors     int // consecutive errors
 	completed  bool
-	loggerName string // registered logger name (for passive log)
+	lingerAt   time.Time // when linger started (zero if not lingering)
+	loggerName string    // registered logger name (for passive log)
 	buffer     *ringBuffer
 	startedAt  time.Time
 	expiresAt  time.Time // zero if no duration limit
@@ -148,13 +151,16 @@ func (s *sampler) Init(args ...any) error {
 func (s *sampler) HandleMessage(from gen.PID, message any) error {
 	switch message.(type) {
 	case messageSamplerTick:
+		if s.completed {
+			return nil
+		}
 		result, err := s.registry.dispatch(s, s.config.Tool, s.config.Arguments)
 		if err != nil {
 			s.errors++
 			// MaxErrors 0 = tolerate unlimited errors (keep retrying)
 			if s.config.MaxErrors > 0 && s.errors >= s.config.MaxErrors {
-				s.completed = true
-				return gen.TerminateReasonNormal
+				s.startLinger()
+				return nil
 			}
 			s.SendAfter(s.PID(), messageSamplerTick{}, s.config.Interval)
 			return nil
@@ -169,14 +175,16 @@ func (s *sampler) HandleMessage(from gen.PID, message any) error {
 		s.sequence++
 
 		if s.config.Count > 0 && s.sequence >= s.config.Count {
-			s.completed = true
-			return gen.TerminateReasonNormal
+			s.startLinger()
+			return nil
 		}
 
 		s.SendAfter(s.PID(), messageSamplerTick{}, s.config.Interval)
 
 	case messageSamplerStop:
-		s.completed = true
+		return gen.TerminateReasonNormal
+
+	case messageSamplerLinger:
 		return gen.TerminateReasonNormal
 	}
 	return nil
@@ -227,6 +235,23 @@ func (s *sampler) HandleCall(from gen.PID, ref gen.Ref, request any) (any, error
 		}, nil
 	}
 	return nil, nil
+}
+
+func (s *sampler) startLinger() {
+	if s.completed {
+		return
+	}
+	s.completed = true
+	s.lingerAt = time.Now()
+	// Stop collecting: unregister logger, demonitor events
+	if s.loggerName != "" {
+		s.Node().LoggerDeletePID(s.PID())
+		s.loggerName = ""
+	}
+	if s.config.Event.Name != "" {
+		s.DemonitorEvent(s.config.Event)
+	}
+	s.SendAfter(s.PID(), messageSamplerLinger{}, s.config.Linger)
 }
 
 func (s *sampler) HandleInspect(from gen.PID, item ...string) map[string]string {
@@ -294,16 +319,14 @@ func (s *sampler) describe() string {
 
 // status returns a human-readable status string.
 func (s *sampler) status() string {
-	if s.completed {
+	if s.completed == false {
+		return "running"
+	}
+	lingerLeft := s.config.Linger - time.Since(s.lingerAt)
+	if lingerLeft <= 0 {
 		return "completed"
 	}
-	if s.expiresAt.IsZero() == false {
-		remaining := time.Until(s.expiresAt)
-		if remaining <= 0 {
-			return "expired"
-		}
-	}
-	return "running"
+	return fmt.Sprintf("completed, lingering %s", lingerLeft.Truncate(time.Second))
 }
 
 // formatArgs converts JSON arguments to a compact key=value string.

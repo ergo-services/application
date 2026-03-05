@@ -63,6 +63,7 @@ func injectNodeParam(schema json.RawMessage) json.RawMessage {
 	}
 
 	props["node"] = json.RawMessage(`{"type":"string","description":"Remote node name for cluster proxy (e.g. 'backend@host'). Omit for local node"}`)
+	props["timeout"] = json.RawMessage(`{"type":"integer","description":"Proxy call timeout in seconds (default: 30, max: 120). Only used for remote node calls"}`)
 
 	newProps, err := json.Marshal(props)
 	if err != nil {

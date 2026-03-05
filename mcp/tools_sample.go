@@ -67,6 +67,10 @@ func registerSampleTools(r *toolRegistry) {
 				"max_errors": {
 					"type": "integer",
 					"description": "Stop after N consecutive tool errors (default: 0 = ignore errors, keep retrying). Use 0 when polling for a rare condition like catching a process stack trace"
+				},
+				"linger_sec": {
+					"type": "integer",
+					"description": "Seconds to keep sampler alive after completion for data retrieval (default: 30)"
 				}
 			},
 			"required": ["tool"]
@@ -105,6 +109,10 @@ func registerSampleTools(r *toolRegistry) {
 				"buffer_size": {
 					"type": "integer",
 					"description": "Ring buffer size (default: 256). Oldest entries overwritten when full"
+				},
+				"linger_sec": {
+					"type": "integer",
+					"description": "Seconds to keep sampler alive after completion for data retrieval (default: 30)"
 				}
 			}
 		}`),
@@ -169,6 +177,7 @@ type sampleStartParams struct {
 	DurationSec int             `json:"duration_sec"`
 	BufferSize  int             `json:"buffer_size"`
 	MaxErrors   int             `json:"max_errors"`
+	LingerSec   int             `json:"linger_sec"`
 }
 
 func toolSampleStart(w gen.Process, params json.RawMessage) (any, error) {
@@ -205,6 +214,10 @@ func toolSampleStart(w gen.Process, params json.RawMessage) (any, error) {
 
 	samplerID := fmt.Sprintf("mcp_sampler_%s", generateSamplerID())
 
+	if p.LingerSec < 1 {
+		p.LingerSec = 30
+	}
+
 	config := samplerConfig{
 		ID:         samplerID,
 		Mode:       samplerModeActive,
@@ -213,6 +226,7 @@ func toolSampleStart(w gen.Process, params json.RawMessage) (any, error) {
 		Interval:   time.Duration(p.IntervalMS) * time.Millisecond,
 		Count:      p.Count,
 		Duration:   time.Duration(p.DurationSec) * time.Second,
+		Linger:     time.Duration(p.LingerSec) * time.Second,
 		MaxErrors:  p.MaxErrors,
 		BufferSize: bufferSize,
 		Owner:      string(w.Node().Name()),
@@ -251,6 +265,7 @@ type sampleListenParams struct {
 	EventNode   string   `json:"event_node"`
 	DurationSec int      `json:"duration_sec"`
 	BufferSize  int      `json:"buffer_size"`
+	LingerSec   int      `json:"linger_sec"`
 }
 
 func toolSampleListen(w gen.Process, params json.RawMessage) (any, error) {
@@ -282,10 +297,15 @@ func toolSampleListen(w gen.Process, params json.RawMessage) (any, error) {
 
 	samplerID := fmt.Sprintf("mcp_sampler_%s", generateSamplerID())
 
+	if p.LingerSec < 1 {
+		p.LingerSec = 30
+	}
+
 	config := samplerConfig{
 		ID:         samplerID,
 		Mode:       samplerModePassive,
 		Duration:   time.Duration(p.DurationSec) * time.Second,
+		Linger:     time.Duration(p.LingerSec) * time.Second,
 		BufferSize: bufferSize,
 		Owner:      string(w.Node().Name()),
 	}

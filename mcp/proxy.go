@@ -4,23 +4,27 @@ import (
 	"encoding/json"
 )
 
-// extractNodeParam extracts the "node" field from JSON tool params.
-// Returns empty string if not present.
-func extractNodeParam(params json.RawMessage) string {
+// proxyParams holds generic proxy parameters extracted from tool arguments.
+type proxyParams struct {
+	Node    string
+	Timeout int
+}
+
+// extractProxyParams extracts "node" and "timeout" fields from JSON tool params.
+func extractProxyParams(params json.RawMessage) proxyParams {
 	if len(params) == 0 {
-		return ""
+		return proxyParams{}
 	}
 	var m map[string]json.RawMessage
 	if err := json.Unmarshal(params, &m); err != nil {
-		return ""
+		return proxyParams{}
 	}
-	nodeRaw, ok := m["node"]
-	if ok == false {
-		return ""
+	var pp proxyParams
+	if nodeRaw, ok := m["node"]; ok {
+		json.Unmarshal(nodeRaw, &pp.Node)
 	}
-	var node string
-	if err := json.Unmarshal(nodeRaw, &node); err != nil {
-		return ""
+	if timeoutRaw, ok := m["timeout"]; ok {
+		json.Unmarshal(timeoutRaw, &pp.Timeout)
 	}
-	return node
+	return pp
 }

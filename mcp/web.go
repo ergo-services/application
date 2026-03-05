@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"ergo.services/ergo/act"
 	"ergo.services/ergo/gen"
@@ -35,7 +36,7 @@ func (w *MCPWeb) Init(args ...any) error {
 	// POST /mcp -- WebHandler routes to Pool "mcp"
 	postHandler := meta.CreateWebHandler(meta.WebHandlerOptions{
 		Worker:         PoolName,
-		RequestTimeout: 30 * 1e9, // 30 seconds for remote proxy calls
+		RequestTimeout: 120 * time.Second, // ceiling for remote proxy calls
 	})
 	if _, err := w.SpawnMeta(postHandler, gen.MetaOptions{}); err != nil {
 		return err
