@@ -130,6 +130,41 @@ radar.CounterAdd(process, name, value, labels)
 radar.HistogramObserve(process, name, value, labels)
 ```
 
+### Top-N Metrics
+
+Top-N metrics track the N highest (or lowest) values observed during each collection cycle and flush them to Prometheus as a GaugeVec. This is useful when you want to identify the most active, slowest, or largest items out of many -- without creating a separate time series for each one.
+
+```go
+func (w *MyActor) Init(args ...any) error {
+    // Register a top-N metric: keep the 10 slowest queries each cycle
+    radar.RegisterTopN(w, "slowest_queries", "Slowest DB queries",
+        10, radar.TopNMax, []string{"query", "table"})
+    return nil
+}
+
+func (w *MyActor) HandleMessage(from gen.PID, message any) error {
+    switch msg := message.(type) {
+    case queryResult:
+        radar.TopNObserve(w, "slowest_queries", msg.Duration, []string{msg.Query, msg.Table})
+    }
+    return nil
+}
+```
+
+Ordering modes:
+- `radar.TopNMax` -- keeps the N largest values (e.g., slowest queries, busiest actors)
+- `radar.TopNMin` -- keeps the N smallest values (e.g., lowest latency, least active)
+
+Each top-N metric is managed by a dedicated actor. Registration is synchronous (returns error). Observations are asynchronous (fire-and-forget). When the registering process terminates, the metric is automatically cleaned up.
+
+```go
+// Registration (sync)
+radar.RegisterTopN(process, name, help, topN, order, labels)
+
+// Observation (async)
+radar.TopNObserve(process, name, value, labels)
+```
+
 ## Options
 
 | Option | Default | Description |

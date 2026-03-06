@@ -92,6 +92,11 @@ func (s *radarSup) Init(args ...any) (act.SupervisorSpec, error) {
 				Args:    []any{poolOpts},
 			},
 			{
+				Name:    nameTopNSup,
+				Factory: factoryTopNSup,
+				Args:    []any{shared, options.MetricsCollectInterval},
+			},
+			{
 				Name:    nameWeb,
 				Factory: factoryWeb,
 				Args:    []any{mux, options.Host, options.Port},

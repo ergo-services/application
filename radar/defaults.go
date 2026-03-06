@@ -16,4 +16,5 @@ const (
 	nameMetricsErgo gen.Atom = "radar_metrics_ergo"
 	nameMetrics     gen.Atom = "radar_metrics"
 	nameWeb         gen.Atom = "radar_web"
+	nameTopNSup     gen.Atom = "radar_topn_sup"
 )

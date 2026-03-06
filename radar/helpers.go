@@ -76,3 +76,15 @@ func CounterAdd(process gen.Process, name string, value float64, labels []string
 func HistogramObserve(process gen.Process, name string, value float64, labels []string) error {
 	return metrics.HistogramObserve(process, nameMetrics, name, value, labels)
 }
+
+// TopN helpers -- delegate to topN supervisor named "radar_topn_sup".
+
+// RegisterTopN registers a top-N metric. A dedicated actor is spawned to manage it.
+func RegisterTopN(process gen.Process, name, help string, topN int, order TopNOrder, labels []string) error {
+	return metrics.RegisterTopN(process, nameTopNSup, name, help, topN, order, labels)
+}
+
+// TopNObserve sends a value observation to the named top-N metric actor.
+func TopNObserve(process gen.Process, name string, value float64, labels []string) error {
+	return metrics.TopNObserve(process, gen.Atom("radar_topn_"+name), value, labels)
+}
