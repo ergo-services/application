@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	ergo.services/actor/health v0.0.0-20260310144405-e07a5309c0ae
-	ergo.services/actor/metrics v0.2.2-0.20260310185407-7675ce5fdcf6
+	ergo.services/actor/metrics v0.2.2-0.20260310204436-cf1b761e1e18
 	ergo.services/ergo v1.999.321-0.20260310144222-83254b31cb81
 )
 
