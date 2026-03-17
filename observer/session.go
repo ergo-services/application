@@ -975,6 +975,9 @@ func (s *session) buildInspectRequest(subType string, args map[string]any) (any,
 				}
 			}
 		}
+		if v, ok := args["limit"].(float64); ok && v >= 1 {
+			req.Limit = int(v)
+		}
 		return req, nil
 
 	case "application_tree":
