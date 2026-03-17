@@ -29,13 +29,13 @@ func (w *postWorker) Init(args ...any) error {
 func (w *postWorker) HandlePost(from gen.PID, writer http.ResponseWriter, request *http.Request) error {
 	sessionID := request.Header.Get("X-Observer-Session")
 	if sessionID == "" {
-		writeJSON(writer, http.StatusUnauthorized, commandResponse{Error: "missing X-Observer-Session"})
+		writeJSON(writer, http.StatusUnauthorized, apiResponse{Error: "missing X-Observer-Session"})
 		return nil
 	}
 
 	body, err := io.ReadAll(io.LimitReader(request.Body, 1<<20))
 	if err != nil {
-		writeJSON(writer, http.StatusBadRequest, commandResponse{Error: "read body failed"})
+		writeJSON(writer, http.StatusBadRequest, apiResponse{Error: "read body failed"})
 		return nil
 	}
 
@@ -48,7 +48,7 @@ func (w *postWorker) HandlePost(from gen.PID, writer http.ResponseWriter, reques
 	case strings.HasPrefix(path, "/api/do/"):
 		w.handleAction(writer, sessionName, strings.TrimPrefix(path, "/api/do/"), body)
 	default:
-		writeJSON(writer, http.StatusNotFound, commandResponse{Error: "not found"})
+		writeJSON(writer, http.StatusNotFound, apiResponse{Error: "not found"})
 	}
 	return nil
 }
@@ -65,7 +65,7 @@ func (w *postWorker) handleCommand(writer http.ResponseWriter, session gen.Atom,
 		TLS    bool   `json:"tls"`
 	}
 	if err := json.Unmarshal(body, &req); err != nil {
-		writeJSON(writer, http.StatusBadRequest, commandResponse{Error: "invalid JSON"})
+		writeJSON(writer, http.StatusBadRequest, apiResponse{Error: "invalid JSON"})
 		return
 	}
 
@@ -95,13 +95,13 @@ func (w *postWorker) handleCommand(writer http.ResponseWriter, session gen.Atom,
 
 	result, err := w.CallWithTimeout(session, cmd, defaultCallTimeout)
 	if err != nil {
-		writeJSON(writer, http.StatusInternalServerError, commandResponse{Error: err.Error()})
+		writeJSON(writer, http.StatusInternalServerError, apiResponse{Error: err.Error()})
 		return
 	}
 
-	resp, ok := result.(commandResponse)
+	resp, ok := result.(apiResponse)
 	if ok == false {
-		writeJSON(writer, http.StatusInternalServerError, commandResponse{Error: "unexpected response"})
+		writeJSON(writer, http.StatusInternalServerError, apiResponse{Error: "unexpected response"})
 		return
 	}
 	if resp.Error != "" {
@@ -113,25 +113,25 @@ func (w *postWorker) handleCommand(writer http.ResponseWriter, session gen.Atom,
 
 func (w *postWorker) handleAction(writer http.ResponseWriter, session gen.Atom, action string, body []byte) {
 	if action == "" {
-		writeJSON(writer, http.StatusBadRequest, actionResponse{Error: "missing action"})
+		writeJSON(writer, http.StatusBadRequest, apiResponse{Error: "missing action"})
 		return
 	}
 
 	var args map[string]any
 	if err := json.Unmarshal(body, &args); err != nil {
-		writeJSON(writer, http.StatusBadRequest, actionResponse{Error: "invalid JSON"})
+		writeJSON(writer, http.StatusBadRequest, apiResponse{Error: "invalid JSON"})
 		return
 	}
 
 	result, err := w.CallWithTimeout(session, actionRequest{Action: action, Args: args}, defaultCallTimeout)
 	if err != nil {
-		writeJSON(writer, http.StatusInternalServerError, actionResponse{Error: err.Error()})
+		writeJSON(writer, http.StatusInternalServerError, apiResponse{Error: err.Error()})
 		return
 	}
 
-	resp, ok := result.(actionResponse)
+	resp, ok := result.(apiResponse)
 	if ok == false {
-		writeJSON(writer, http.StatusInternalServerError, actionResponse{Error: "unexpected response"})
+		writeJSON(writer, http.StatusInternalServerError, apiResponse{Error: "unexpected response"})
 		return
 	}
 	if resp.Error != "" {

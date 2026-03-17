@@ -2,6 +2,7 @@ package observer
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -186,39 +187,39 @@ func (s *session) handleCommand(cmd commandRequest) (any, error) {
 		return s.doSubscribe(cmd.Type, cmd.Args)
 	case "unsubscribe":
 		s.doUnsubscribe(cmd.Type, cmd.Args)
-		return commandResponse{OK: true}, nil
+		return apiResponse{OK: true}, nil
 	case "switch":
 		node, _ := cmd.Args["node"].(string)
 		if node == "" {
-			return commandResponse{Error: "node is required"}, nil
+			return apiResponse{Error: "node is required"}, nil
 		}
 		return s.doSwitch(gen.Atom(node), cmd.Args)
 	}
-	return commandResponse{Error: "unknown command: " + cmd.Command}, nil
+	return apiResponse{Error: "unknown command: " + cmd.Command}, nil
 }
 
 // handleAction processes do/* commands by forwarding to system_inspect on the observed node
 func (s *session) handleAction(req actionRequest) (any, error) {
 	inspectReq, err := s.buildActionRequest(req.Action, req.Args)
 	if err != nil {
-		return actionResponse{Error: err.Error()}, nil
+		return apiResponse{Error: err.Error()}, nil
 	}
 
 	inspectPID := gen.ProcessID{Name: inspect.Name, Node: s.node}
 	result, err := s.CallWithTimeout(inspectPID, inspectReq, defaultCallTimeout)
 	if err != nil {
-		return actionResponse{Error: fmt.Sprintf("action %s: %s", req.Action, err)}, nil
+		return apiResponse{Error: fmt.Sprintf("action %s: %s", req.Action, err)}, nil
 	}
 
 	// extract error and optional data from response
 	if e := actionError(result); e != nil {
-		return actionResponse{Error: e.Error()}, nil
+		return apiResponse{Error: e.Error()}, nil
 	}
 	// some actions return data (e.g. one-shot inspect)
 	if r, ok := result.(inspect.ResponseDoInspect); ok {
-		return actionResponse{OK: true, Data: r.State}, nil
+		return apiResponse{OK: true, Data: r.State}, nil
 	}
-	return actionResponse{OK: true}, nil
+	return apiResponse{OK: true}, nil
 }
 
 func (s *session) buildActionRequest(action string, args map[string]any) (any, error) {
@@ -262,7 +263,7 @@ func (s *session) buildActionRequest(action string, args map[string]any) (any, e
 			}
 			return inspect.RequestDoSendExitMeta{
 				Meta:   a,
-				Reason: fmt.Errorf(reason),
+				Reason: errors.New(reason),
 			}, nil
 		}
 		// regular process
@@ -276,7 +277,7 @@ func (s *session) buildActionRequest(action string, args map[string]any) (any, e
 		}
 		return inspect.RequestDoSendExit{
 			PID:    p,
-			Reason: fmt.Errorf(reason),
+			Reason: errors.New(reason),
 		}, nil
 
 	case "kill":
@@ -530,20 +531,20 @@ func actionError(result any) error {
 func (s *session) doSubscribe(subType string, args map[string]any) (any, error) {
 	inspectReq, err := s.buildInspectRequest(subType, args)
 	if err != nil {
-		return commandResponse{Error: err.Error()}, nil
+		return apiResponse{Error: err.Error()}, nil
 	}
 
 	// call system_inspect to start/reuse the inspector child
 	inspectPID := gen.ProcessID{Name: inspect.Name, Node: s.node}
 	result, err := s.CallWithTimeout(inspectPID, inspectReq, defaultCallTimeout)
 	if err != nil {
-		return commandResponse{Error: fmt.Sprintf("inspect call: %s", err)}, nil
+		return apiResponse{Error: fmt.Sprintf("inspect call: %s", err)}, nil
 	}
 
 	// extract Event from response
 	event, err := extractEvent(result)
 	if err != nil {
-		return commandResponse{Error: fmt.Sprintf("inspect response: %s", err)}, nil
+		return apiResponse{Error: fmt.Sprintf("inspect response: %s", err)}, nil
 	}
 
 	eventKey := event.String()
@@ -561,12 +562,12 @@ func (s *session) doSubscribe(subType string, args map[string]any) (any, error) 
 
 	// dedup by event key
 	if _, exist := s.subscriptions[eventKey]; exist {
-		return commandResponse{OK: true}, nil
+		return apiResponse{OK: true}, nil
 	}
 
 	// monitor the inspect event
 	if _, err := s.MonitorEvent(event); err != nil {
-		return commandResponse{Error: fmt.Sprintf("monitor: %s", err)}, nil
+		return apiResponse{Error: fmt.Sprintf("monitor: %s", err)}, nil
 	}
 
 	s.subscriptions[eventKey] = event
@@ -576,7 +577,7 @@ func (s *session) doSubscribe(subType string, args map[string]any) (any, error) 
 	// send initial data from inspect response for types that carry extra info
 	s.sendInitialData(subType, result)
 
-	return commandResponse{OK: true}, nil
+	return apiResponse{OK: true}, nil
 }
 
 // doUnsubscribe removes a subscription by lookup key
@@ -599,23 +600,23 @@ func (s *session) doUnsubscribe(subType string, args map[string]any) {
 // doSwitch changes observed node. Args may contain route options: Cookie, Host, Port, TLS.
 func (s *session) doSwitch(newNode gen.Atom, args map[string]any) (any, error) {
 	if s.node == newNode {
-		return commandResponse{OK: true}, nil
+		return apiResponse{OK: true}, nil
 	}
 
 	// establish connection if not yet connected (like old observer's tryConnect)
 	if err := s.tryConnect(newNode, args); err != nil {
-		return commandResponse{Error: fmt.Sprintf("connect to %s: %s", newNode, err)}, nil
+		return apiResponse{Error: fmt.Sprintf("connect to %s: %s", newNode, err)}, nil
 	}
 
 	// inspect remote node
 	inspectPID := gen.ProcessID{Name: inspect.Name, Node: newNode}
 	result, err := s.CallWithTimeout(inspectPID, inspect.RequestInspectNode{}, defaultCallTimeout)
 	if err != nil {
-		return commandResponse{Error: fmt.Sprintf("inspect %s: %s", newNode, err)}, nil
+		return apiResponse{Error: fmt.Sprintf("inspect %s: %s", newNode, err)}, nil
 	}
 	r, ok := result.(inspect.ResponseInspectNode)
 	if ok == false {
-		return commandResponse{Error: "unexpected response from remote inspect"}, nil
+		return apiResponse{Error: "unexpected response from remote inspect"}, nil
 	}
 
 	// unsubscribe all from current node
@@ -628,7 +629,7 @@ func (s *session) doSwitch(newNode gen.Atom, args map[string]any) (any, error) {
 	s.node = newNode
 	s.creation = r.Creation
 	s.sendConnectedEvent()
-	return commandResponse{OK: true}, nil
+	return apiResponse{OK: true}, nil
 }
 
 // tryConnect ensures network connection to the target node.
@@ -679,30 +680,20 @@ func (s *session) tryConnect(node gen.Atom, args map[string]any) error {
 	return err
 }
 
-// sendConnectedEvent sends session info to browser via SSE.
-// Includes peers (connected nodes) and cluster nodes (from registrar).
-// Also subscribes to registrar event for cluster changes.
-func (s *session) sendConnectedEvent() {
-	type nodeDesc struct {
-		Name      gen.Atom `json:"Name"`
-		CRC32     string   `json:"CRC32"`
-		Connected bool     `json:"Connected"`
-	}
+type nodeDesc struct {
+	Name      gen.Atom `json:"Name"`
+	CRC32     string   `json:"CRC32"`
+	Connected bool     `json:"Connected"`
+}
 
-	// connected peers
+// collectNodes gathers connected peers and cluster nodes from registrar
+func (s *session) collectNodes() []nodeDesc {
 	networkInfo, _ := s.Node().Network().Info()
-	connectedSet := make(map[gen.Atom]bool, len(networkInfo.Nodes))
-	for _, n := range networkInfo.Nodes {
-		connectedSet[n] = true
-	}
-
-	// all nodes: start with connected peers
 	allNodes := make(map[gen.Atom]nodeDesc)
 	for _, n := range networkInfo.Nodes {
 		allNodes[n] = nodeDesc{Name: n, CRC32: n.CRC32(), Connected: true}
 	}
 
-	// add cluster nodes from registrar (if available)
 	registrar, err := s.Node().Network().Registrar()
 	if err == nil {
 		clusterNodes, err := registrar.Nodes()
@@ -713,8 +704,24 @@ func (s *session) sendConnectedEvent() {
 				}
 			}
 		}
+	}
 
-		// subscribe to registrar event for cluster changes (skip if already subscribed)
+	nodes := make([]nodeDesc, 0, len(allNodes))
+	for _, desc := range allNodes {
+		nodes = append(nodes, desc)
+	}
+	return nodes
+}
+
+// sendConnectedEvent sends session info to browser via SSE.
+// Includes peers (connected nodes) and cluster nodes (from registrar).
+// Also subscribes to registrar event for cluster changes.
+func (s *session) sendConnectedEvent() {
+	nodes := s.collectNodes()
+
+	// subscribe to registrar event for cluster changes (skip if already subscribed)
+	registrar, err := s.Node().Network().Registrar()
+	if err == nil {
 		regEvent, err := registrar.Event()
 		if err == nil {
 			if _, exist := s.subIndex["registrar_event"]; exist == false {
@@ -723,12 +730,6 @@ func (s *session) sendConnectedEvent() {
 				s.subIndex["registrar_event"] = regEvent.String()
 			}
 		}
-	}
-
-	// build sorted list
-	nodes := make([]nodeDesc, 0, len(allNodes))
-	for _, desc := range allNodes {
-		nodes = append(nodes, desc)
 	}
 
 	intro := struct {
@@ -754,38 +755,9 @@ func (s *session) sendConnectedEvent() {
 
 // sendClusterUpdate re-reads cluster nodes and sends update to browser
 func (s *session) sendClusterUpdate() {
-	type nodeDesc struct {
-		Name      gen.Atom `json:"Name"`
-		CRC32     string   `json:"CRC32"`
-		Connected bool     `json:"Connected"`
-	}
-
-	networkInfo, _ := s.Node().Network().Info()
-	allNodes := make(map[gen.Atom]nodeDesc)
-	for _, n := range networkInfo.Nodes {
-		allNodes[n] = nodeDesc{Name: n, CRC32: n.CRC32(), Connected: true}
-	}
-
-	registrar, err := s.Node().Network().Registrar()
-	if err == nil {
-		clusterNodes, err := registrar.Nodes()
-		if err == nil {
-			for _, n := range clusterNodes {
-				if _, exist := allNodes[n]; exist == false {
-					allNodes[n] = nodeDesc{Name: n, CRC32: n.CRC32(), Connected: false}
-				}
-			}
-		}
-	}
-
-	nodes := make([]nodeDesc, 0, len(allNodes))
-	for _, desc := range allNodes {
-		nodes = append(nodes, desc)
-	}
-
 	payload := struct {
 		Nodes []nodeDesc `json:"Nodes"`
-	}{Nodes: nodes}
+	}{Nodes: s.collectNodes()}
 
 	data, _ := json.Marshal(payload)
 	s.eventCounter++

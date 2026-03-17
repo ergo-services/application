@@ -7,8 +7,8 @@ type commandRequest struct {
 	Args    map[string]any // type-specific arguments
 }
 
-// commandResponse returned from session actor to POST worker
-type commandResponse struct {
+// apiResponse returned from session actor to POST worker
+type apiResponse struct {
 	OK    bool   `json:"ok"`
 	Error string `json:"error,omitempty"`
 	Data  any    `json:"data,omitempty"`
@@ -18,11 +18,4 @@ type commandResponse struct {
 type actionRequest struct {
 	Action string         // "send", "send_exit", "kill", "set_log_level", etc.
 	Args   map[string]any
-}
-
-// actionResponse returned from session actor to POST worker
-type actionResponse struct {
-	OK    bool   `json:"ok"`
-	Error string `json:"error,omitempty"`
-	Data  any    `json:"data,omitempty"`
 }
