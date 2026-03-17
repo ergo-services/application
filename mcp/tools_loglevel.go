@@ -94,21 +94,21 @@ func toolLogLevelGet(w gen.Process, params json.RawMessage) (any, error) {
 	// Try as PID
 	pid, err := parsePID(w.Node().Name(), w.Node().Creation(), p.Target)
 	if err == nil {
-		level, err := w.Node().LogLevelProcess(pid)
+		info, err := w.Node().ProcessInfo(pid)
 		if err != nil {
 			return nil, fmt.Errorf("log_level_get process %s: %w", p.Target, err)
 		}
-		return textResult(fmt.Sprintf("process %s log level: %s", p.Target, level)), nil
+		return textResult(fmt.Sprintf("process %s log level: %s", p.Target, info.LogLevel)), nil
 	}
 
 	// Try as alias
 	alias, err := parseAlias(w.Node().Name(), w.Node().Creation(), p.Target)
 	if err == nil {
-		level, err := w.Node().LogLevelMeta(alias)
+		info, err := w.Node().MetaInfo(alias)
 		if err != nil {
 			return nil, fmt.Errorf("log_level_get meta %s: %w", p.Target, err)
 		}
-		return textResult(fmt.Sprintf("meta %s log level: %s", p.Target, level)), nil
+		return textResult(fmt.Sprintf("meta %s log level: %s", p.Target, info.LogLevel)), nil
 	}
 
 	// Try as registered process name
@@ -116,11 +116,11 @@ func toolLogLevelGet(w gen.Process, params json.RawMessage) (any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot resolve target %q: not a valid PID, alias, or registered name", p.Target)
 	}
-	level, err := w.Node().LogLevelProcess(resolved)
+	info, err := w.Node().ProcessInfo(resolved)
 	if err != nil {
 		return nil, fmt.Errorf("log_level_get process %s: %w", p.Target, err)
 	}
-	return textResult(fmt.Sprintf("process %s (%s) log level: %s", p.Target, resolved, level)), nil
+	return textResult(fmt.Sprintf("process %s (%s) log level: %s", p.Target, resolved, info.LogLevel)), nil
 }
 
 type logLevelSetParams struct {
@@ -149,7 +149,7 @@ func toolLogLevelSet(w gen.Process, params json.RawMessage) (any, error) {
 	// Try as PID
 	pid, perr := parsePID(w.Node().Name(), w.Node().Creation(), p.Target)
 	if perr == nil {
-		if err := w.Node().SetLogLevelProcess(pid, level); err != nil {
+		if err := w.Node().SetProcessLogLevel(pid, level); err != nil {
 			return nil, fmt.Errorf("log_level_set process %s: %w", p.Target, err)
 		}
 		return textResult(fmt.Sprintf("process %s log level set to %s", p.Target, level)), nil
@@ -158,7 +158,7 @@ func toolLogLevelSet(w gen.Process, params json.RawMessage) (any, error) {
 	// Try as alias
 	alias, aerr := parseAlias(w.Node().Name(), w.Node().Creation(), p.Target)
 	if aerr == nil {
-		if err := w.Node().SetLogLevelMeta(alias, level); err != nil {
+		if err := w.Node().SetMetaLogLevel(alias, level); err != nil {
 			return nil, fmt.Errorf("log_level_set meta %s: %w", p.Target, err)
 		}
 		return textResult(fmt.Sprintf("meta %s log level set to %s", p.Target, level)), nil
@@ -169,7 +169,7 @@ func toolLogLevelSet(w gen.Process, params json.RawMessage) (any, error) {
 	if nerr != nil {
 		return nil, fmt.Errorf("cannot resolve target %q: not a valid PID, alias, or registered name", p.Target)
 	}
-	if err := w.Node().SetLogLevelProcess(resolved, level); err != nil {
+	if err := w.Node().SetProcessLogLevel(resolved, level); err != nil {
 		return nil, fmt.Errorf("log_level_set process %s: %w", p.Target, err)
 	}
 	return textResult(fmt.Sprintf("process %s (%s) log level set to %s", p.Target, resolved, level)), nil

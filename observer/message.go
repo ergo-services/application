@@ -1,27 +1,28 @@
 package observer
 
-import "ergo.services/ergo/gen"
-
-type messageCommand struct {
-	ID      gen.Alias
-	CID     string
-	Command string
-	Name    string
-	Args    map[string]any
+// commandRequest sent via Call from POST worker to session actor
+type commandRequest struct {
+	Command string         // "subscribe", "unsubscribe", "switch"
+	Type    string         // subscription type (node_info, process_list, etc.)
+	Args    map[string]any // type-specific arguments
 }
 
-type messageError struct {
-	CID   string
-	Error string
+// commandResponse returned from session actor to POST worker
+type commandResponse struct {
+	OK    bool   `json:"ok"`
+	Error string `json:"error,omitempty"`
+	Data  any    `json:"data,omitempty"`
 }
 
-type messageResult struct {
-	CID    string
-	Result any
+// actionRequest sent via Call from POST worker to session actor for do/* commands
+type actionRequest struct {
+	Action string         // "send", "send_exit", "kill", "set_log_level", etc.
+	Args   map[string]any
 }
 
-type messageEvent struct {
-	Timestamp int64
-	Event     gen.Event
-	Message   any
+// actionResponse returned from session actor to POST worker
+type actionResponse struct {
+	OK    bool   `json:"ok"`
+	Error string `json:"error,omitempty"`
+	Data  any    `json:"data,omitempty"`
 }
