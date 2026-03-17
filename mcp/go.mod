@@ -2,6 +2,6 @@ module ergo.services/application/mcp
 
 go 1.24.0
 
-require ergo.services/ergo v1.999.321-0.20260310144222-83254b31cb81
+require ergo.services/ergo v1.999.321-0.20260317083606-402f61f3f971
 
 require github.com/google/pprof v0.0.0-20260302011040-a15ffb7f9dcc
