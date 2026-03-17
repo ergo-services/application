@@ -12,7 +12,7 @@ const (
 	poolName gen.Atom = "observer_post_pool"
 )
 
-func Create(options Options) gen.ApplicationBehavior {
+func CreateApp(options Options) gen.ApplicationBehavior {
 	if options.Port == 0 {
 		options.Port = DefaultPort
 	}
