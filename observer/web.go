@@ -49,6 +49,7 @@ func (w *web) Init(args ...any) error {
 	// SSE endpoint → all connect/disconnect go to mgrName
 	sseHandler := sse.CreateHandler(sse.HandlerOptions{
 		ProcessPool: []gen.Atom{mgrName},
+		Compression: true,
 	})
 	if _, err := w.SpawnMeta(sseHandler, gen.MetaOptions{}); err != nil {
 		return err
