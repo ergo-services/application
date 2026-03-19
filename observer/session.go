@@ -215,9 +215,21 @@ func (s *session) handleAction(req actionRequest) (any, error) {
 	if e := actionError(result); e != nil {
 		return apiResponse{Error: e.Error()}, nil
 	}
-	// some actions return data (e.g. one-shot inspect)
+	// some actions return data
 	if r, ok := result.(inspect.ResponseDoInspect); ok {
 		return apiResponse{OK: true, Data: r.State}, nil
+	}
+	if r, ok := result.(inspect.ResponseDoGoroutines); ok {
+		if r.Error != nil {
+			return apiResponse{Error: r.Error.Error()}, nil
+		}
+		return apiResponse{OK: true, Data: r}, nil
+	}
+	if r, ok := result.(inspect.ResponseDoHeapProfile); ok {
+		if r.Error != nil {
+			return apiResponse{Error: r.Error.Error()}, nil
+		}
+		return apiResponse{OK: true, Data: r}, nil
 	}
 	return apiResponse{OK: true}, nil
 }
@@ -419,6 +431,20 @@ func (s *session) buildActionRequest(action string, args map[string]any) (any, e
 		}
 		v, _ := args["priority"].(string)
 		return inspect.RequestDoSetMetaSendPriority{Meta: a, Priority: parsePriority(v)}, nil
+
+	case "goroutines":
+		stack, _ := args["stack"].(string)
+		state, _ := args["state"].(string)
+		minWait, _ := args["minWait"].(float64)
+		return inspect.RequestDoGoroutines{
+			Stack:   stack,
+			State:   state,
+			MinWait: int64(minWait),
+		}, nil
+
+	case "heap":
+		minBytes, _ := args["minBytes"].(float64)
+		return inspect.RequestDoHeapProfile{MinBytes: int64(minBytes)}, nil
 	}
 	return nil, fmt.Errorf("unknown action: %s", action)
 }
@@ -811,7 +837,6 @@ func (s *session) buildInspectRequest(subType string, args map[string]any) (any,
 		return inspect.RequestInspectNode{}, nil
 
 	case "process_list":
-		// check if any filters are set — use ProcessRange (full scan with filters)
 		namePattern, _ := args["namePattern"].(string)
 		behavior, _ := args["behavior"].(string)
 		application, _ := args["application"].(string)
@@ -819,16 +844,10 @@ func (s *session) buildInspectRequest(subType string, args map[string]any) (any,
 		minMailbox, _ := args["minMailbox"].(float64)
 		lim, _ := args["pidLimit"].(float64)
 
-		hasFilters := namePattern != "" || behavior != "" || application != "" || state != "" || minMailbox > 0
-
-		if lim == -1 || hasFilters {
-			// ProcessRange: full scan with server-side filters
-			limit := 10000
-			if lim > 0 {
-				limit = int(lim)
-			}
+		// "all" mode: full unordered scan via ProcessRange
+		if lim == -1 {
 			return inspect.RequestInspectProcessRange{
-				Limit:       limit,
+				Limit:       10000,
 				Name:        namePattern,
 				Behavior:    behavior,
 				Application: application,
@@ -837,7 +856,7 @@ func (s *session) buildInspectRequest(subType string, args map[string]any) (any,
 			}, nil
 		}
 
-		// ProcessList: simple PID range, no filters
+		// first/last/pid mode: ordered scan via ProcessList (with optional filter)
 		req := inspect.RequestInspectProcessList{Start: 1000, Limit: 500}
 		if v, ok := args["pidStart"].(float64); ok {
 			req.Start = int(v)
@@ -845,6 +864,11 @@ func (s *session) buildInspectRequest(subType string, args map[string]any) (any,
 		if lim > 0 {
 			req.Limit = int(lim)
 		}
+		req.Name = namePattern
+		req.Behavior = behavior
+		req.Application = application
+		req.State = state
+		req.MinMailbox = uint64(minMailbox)
 		return req, nil
 
 	case "process_info":
@@ -923,8 +947,12 @@ func (s *session) buildInspectRequest(subType string, args map[string]any) (any,
 
 	case "event_list":
 		req := inspect.RequestInspectEventList{Limit: 500}
-		if v, ok := args["limit"].(float64); ok && v >= 1 {
-			req.Limit = int(v)
+		if v, ok := args["limit"].(float64); ok {
+			if v == -1 {
+				req.Limit = 100000
+			} else if v >= 1 {
+				req.Limit = int(v)
+			}
 		}
 		if v, ok := args["namePattern"].(string); ok {
 			req.Name = v
@@ -989,6 +1017,16 @@ func (s *session) buildInspectRequest(subType string, args map[string]any) (any,
 			req.Limit = int(v)
 		}
 		return req, nil
+
+	case "heap":
+		req := inspect.RequestInspectHeap{Limit: 100}
+		if v, ok := args["limit"].(float64); ok && v >= 1 {
+			req.Limit = int(v)
+		}
+		if v, ok := args["name"].(string); ok {
+			req.Name = v
+		}
+		return req, nil
 	}
 
 	return nil, fmt.Errorf("unknown subscription type: %s", subType)
@@ -1024,6 +1062,8 @@ func extractEvent(result any) (gen.Event, error) {
 	case inspect.ResponseInspectMetaState:
 		return r.Event, nil
 	case inspect.ResponseInspectApplicationTree:
+		return r.Event, nil
+	case inspect.ResponseInspectHeap:
 		return r.Event, nil
 	case error:
 		return gen.Event{}, r
@@ -1063,6 +1103,8 @@ func inspectEventToSSEType(name gen.Atom) string {
 		return "application_tree"
 	case strings.HasPrefix(n, "inspect_log"):
 		return "log"
+	case strings.HasPrefix(n, "inspect_heap"):
+		return "heap"
 	}
 	return n
 }
@@ -1119,12 +1161,12 @@ func subLookupKey(subType string, args map[string]any) string {
 		appP, _ := args["application"].(string)
 		stateP, _ := args["state"].(string)
 		mailboxP, _ := args["minMailbox"].(float64)
-		hasFilters := nameP != "" || behaviorP != "" || appP != "" || stateP != "" || mailboxP > 0
-		if limit == -1 || hasFilters {
-			return fmt.Sprintf("%s:range:name=%s:beh=%s:app=%s:state=%s:mbox=%d:limit=%d",
-				subType, nameP, behaviorP, appP, stateP, int(mailboxP), int(limit))
+		if limit == -1 {
+			return fmt.Sprintf("%s:range:name=%s:beh=%s:app=%s:state=%s:mbox=%d",
+				subType, nameP, behaviorP, appP, stateP, int(mailboxP))
 		}
-		return fmt.Sprintf("%s:start=%d:limit=%d", subType, int(start), int(limit))
+		return fmt.Sprintf("%s:start=%d:limit=%d:name=%s:beh=%s:app=%s:state=%s:mbox=%d",
+			subType, int(start), int(limit), nameP, behaviorP, appP, stateP, int(mailboxP))
 	case "connection_list":
 		clLimit, _ := args["limit"].(float64)
 		clName, _ := args["namePattern"].(string)
@@ -1137,6 +1179,10 @@ func subLookupKey(subType string, args map[string]any) string {
 		minSubs, _ := args["minSubscribers"].(float64)
 		return fmt.Sprintf("%s:limit=%d:name=%s:notify=%s:buffered=%s:minsubs=%d",
 			subType, int(limit), name, notifyMode, bufferedMode, int(minSubs))
+	case "heap":
+		limit, _ := args["limit"].(float64)
+		name, _ := args["name"].(string)
+		return fmt.Sprintf("%s:limit=%d:name=%s", subType, int(limit), name)
 	}
 	return subType
 }
