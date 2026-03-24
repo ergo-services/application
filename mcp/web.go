@@ -33,7 +33,7 @@ func (w *MCPWeb) Init(args ...any) error {
 
 	mux := http.NewServeMux()
 
-	// POST /mcp -- WebHandler routes to Pool "mcp"
+	// POST /mcp: WebHandler routes to Pool "mcp"
 	postHandler := meta.CreateWebHandler(meta.WebHandlerOptions{
 		Worker:         PoolName,
 		RequestTimeout: 120 * time.Second, // ceiling for remote proxy calls

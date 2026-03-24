@@ -33,7 +33,7 @@ func pprofProcessGoroutine(pid string) (any, error) {
 	}
 
 	if len(matched) == 0 {
-		return nil, fmt.Errorf("no goroutine found with pid %s (pprof IS enabled). The process is likely in Sleep state -- sleeping processes park their goroutine so it does not appear in the dump. Use process_state tool to verify. If the process is Running or WaitResponse, the PID may be incorrect", pid)
+		return nil, fmt.Errorf("no goroutine found with pid %s (pprof IS enabled). The process is likely in Sleep state; sleeping processes park their goroutine so it does not appear in the dump. Use process_state tool to verify. If the process is Running or WaitResponse, the PID may be incorrect", pid)
 	}
 
 	return textResult(strings.Join(matched, "\n\n")), nil

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"ergo.services/ergo/act"
@@ -38,7 +39,7 @@ func (s *session) Init(args ...any) error {
 
 	s.Log().SetLogger("default")
 
-	// link to SSE connection meta — session dies when SSE dies
+	// link to SSE connection meta; session dies when SSE dies
 	if err := s.LinkAlias(s.sseAlias); err != nil {
 		s.Log().Error("session %s: LinkAlias failed: %s", s.id, err)
 		return err
@@ -150,7 +151,7 @@ func (s *session) HandleEvent(message gen.MessageEvent) error {
 	}
 	s.Log().Debug("session %s: event %s", s.id, key)
 
-	// check if this is a registrar event — send cluster_update instead of raw data
+	// check if this is a registrar event; send cluster_update instead of raw data
 	if s.subIndex["registrar_event"] == key {
 		s.sendClusterUpdate()
 		return nil
@@ -659,7 +660,7 @@ func (s *session) doSwitch(newNode gen.Atom, args map[string]any) (any, error) {
 }
 
 // tryConnect ensures network connection to the target node.
-// If already connected — no-op. Otherwise tries registrar, then explicit route from args.
+// If already connected, no-op. Otherwise tries registrar, then explicit route from args.
 func (s *session) tryConnect(node gen.Atom, args map[string]any) error {
 	// connecting to self
 	if node == s.Node().Name() {
@@ -804,21 +805,23 @@ func (s *session) sendInitialData(subType string, result any) {
 		}
 		// send node_meta event with OS, Arch, Cores, CRC32, Timezone
 		meta := struct {
-			OS       string      `json:"OS"`
-			Arch     string      `json:"Arch"`
-			Cores    int         `json:"Cores"`
-			Timezone string      `json:"Timezone"`
-			CRC32    string      `json:"CRC32"`
-			Version  gen.Version `json:"Version"`
-			Creation int64       `json:"Creation"`
+			OS        string      `json:"OS"`
+			Arch      string      `json:"Arch"`
+			Cores     int         `json:"Cores"`
+			Timezone  string      `json:"Timezone"`
+			GoVersion string      `json:"GoVersion"`
+			CRC32     string      `json:"CRC32"`
+			Version   gen.Version `json:"Version"`
+			Creation  int64       `json:"Creation"`
 		}{
-			OS:       r.OS,
-			Arch:     r.Arch,
-			Cores:    r.Cores,
-			Timezone: r.Timezone,
-			CRC32:    r.CRC32,
-			Version:  r.Version,
-			Creation: r.Creation,
+			OS:        r.OS,
+			Arch:      r.Arch,
+			Cores:     r.Cores,
+			Timezone:  r.Timezone,
+			GoVersion: r.GoVersion,
+			CRC32:     r.CRC32,
+			Version:   r.Version,
+			Creation:  r.Creation,
 		}
 		data, _ := json.Marshal(meta)
 		s.eventCounter++
@@ -1006,6 +1009,12 @@ func (s *session) buildInspectRequest(subType string, args map[string]any) (any,
 		if v, ok := args["limit"].(float64); ok && v >= 1 {
 			req.Limit = int(v)
 		}
+		if v, ok := args["messagePattern"].(string); ok {
+			req.MessagePattern = v
+		}
+		if v, ok := args["messageExclude"].(bool); ok {
+			req.MessageExclude = v
+		}
 		return req, nil
 
 	case "application_tree":
@@ -1183,6 +1192,17 @@ func subLookupKey(subType string, args map[string]any) string {
 		limit, _ := args["limit"].(float64)
 		name, _ := args["name"].(string)
 		return fmt.Sprintf("%s:limit=%d:name=%s", subType, int(limit), name)
+	case "log":
+		var levs []string
+		if ls, ok := args["levels"].([]any); ok {
+			for _, l := range ls {
+				if s, ok := l.(string); ok {
+					levs = append(levs, s)
+				}
+			}
+			sort.Strings(levs)
+		}
+		return fmt.Sprintf("%s:%s:%v:%v:%v", subType, strings.Join(levs, ","), args["limit"], args["messagePattern"], args["messageExclude"])
 	}
 	return subType
 }

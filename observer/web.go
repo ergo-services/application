@@ -23,7 +23,7 @@ func factory_web() gen.ProcessBehavior {
 }
 
 // web spawns all meta processes (SSE handler, WebHandler, WebServer).
-// Does not handle messages — SSE connect/disconnect goes to mgr via ProcessPool.
+// Does not handle messages. SSE connect/disconnect goes to mgr via ProcessPool.
 type web struct {
 	act.Actor
 }
@@ -117,7 +117,7 @@ func gzipFileServer(fsys fs.FS) http.HandlerFunc {
 			return
 		}
 
-		// try original file (images, fonts, etc. — not gzipped)
+		// try original file (images, fonts, etc., not gzipped)
 		if data, err := fs.ReadFile(fsys, path); err == nil {
 			ext := filepath.Ext(path)
 			if ct, ok := contentTypes[ext]; ok {

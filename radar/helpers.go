@@ -8,7 +8,7 @@ import (
 	"ergo.services/ergo/gen"
 )
 
-// Health helpers -- delegate to health actor named "radar_health".
+// Health helpers: delegate to health actor named "radar_health".
 
 // RegisterService registers a service signal with the health actor.
 func RegisterService(process gen.Process, signal gen.Atom, probe Probe, timeout time.Duration) error {
@@ -35,7 +35,7 @@ func ServiceDown(process gen.Process, signal gen.Atom) error {
 	return health.SignalDown(process, nameHealth, signal)
 }
 
-// Metrics helpers -- delegate to metrics pool named "radar_metrics".
+// Metrics helpers: delegate to metrics pool named "radar_metrics".
 
 // RegisterGauge registers a gauge metric via the metrics pool.
 func RegisterGauge(process gen.Process, name, help string, labels []string) error {
@@ -77,7 +77,7 @@ func HistogramObserve(process gen.Process, name string, value float64, labels []
 	return metrics.HistogramObserve(process, nameMetrics, name, value, labels)
 }
 
-// TopN helpers -- delegate to topN supervisor named "radar_topn_sup".
+// TopN helpers: delegate to topN supervisor named "radar_topn_sup".
 
 // RegisterTopN registers a top-N metric. A dedicated actor is spawned to manage it.
 func RegisterTopN(process gen.Process, name, help string, topN int, order TopNOrder, labels []string) error {

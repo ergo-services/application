@@ -167,7 +167,7 @@ func registerSampleTools(r *toolRegistry) {
 	})
 }
 
-// sample_start -- active sampler (periodic tool calls)
+// sample_start: active sampler (periodic tool calls)
 
 type sampleStartParams struct {
 	Tool        string          `json:"tool"`
@@ -232,7 +232,7 @@ func toolSampleStart(w gen.Process, params json.RawMessage) (any, error) {
 		Owner:      string(w.Node().Name()),
 	}
 
-	// get registry from pool -- it's passed as second arg
+	// get registry from pool; it's passed as second arg
 	reg, _ := w.Env(gen.Env("mcp_registry"))
 	registry := reg.(*toolRegistry)
 
@@ -256,7 +256,7 @@ func toolSampleStart(w gen.Process, params json.RawMessage) (any, error) {
 	return textResult(text), nil
 }
 
-// sample_listen -- passive sampler (log + event listeners)
+// sample_listen: passive sampler (log + event listeners)
 
 type sampleListenParams struct {
 	LogLevels   []string `json:"log_levels"`
@@ -354,7 +354,7 @@ func toolSampleListen(w gen.Process, params json.RawMessage) (any, error) {
 	return textResult(text), nil
 }
 
-// sample_read, sample_stop, sample_list -- shared
+// sample_read, sample_stop, sample_list: shared
 
 type sampleReadParams struct {
 	SamplerID string `json:"sampler_id"`

@@ -43,7 +43,7 @@ type samplerConfig struct {
 }
 
 // ringBuffer is a fixed-size circular buffer.
-// No locks -- accessed only from actor callbacks.
+// No locks; accessed only from actor callbacks.
 type ringBuffer struct {
 	items []SampleEntry
 	size  int

@@ -143,7 +143,7 @@ func (w *MCPWorker) handleToolsCall(writer http.ResponseWriter, req jsonrpcReque
 	pp := extractProxyParams(p.Arguments)
 
 	if pp.Node != "" && gen.Atom(pp.Node) != w.Node().Name() {
-		// Remote call -- proxy to remote MCPPool
+		// Remote call; proxy to remote MCPPool
 		w.handleRemoteToolCall(writer, req, p, gen.Atom(pp.Node), pp.Timeout)
 		return
 	}

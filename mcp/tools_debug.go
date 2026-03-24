@@ -18,7 +18,7 @@ import (
 func registerDebugTools(r *toolRegistry) {
 	r.register(ToolDefinition{
 		Name:        "pprof_goroutines",
-		Description: "Returns goroutine profile. Without pid: returns all goroutines (use limit to control output size). With pid: returns stack trace for a specific Ergo process goroutine. NOTE: pid lookup requires the node to be built with -tags=pprof. If the process is in Sleep state, its goroutine is parked and will not appear in the dump -- this is normal, not an error. Use process_state to check the process state before requesting its goroutine.",
+		Description: "Returns goroutine profile. Without pid: returns all goroutines (use limit to control output size). With pid: returns stack trace for a specific Ergo process goroutine. NOTE: pid lookup requires the node to be built with -tags=pprof. If the process is in Sleep state, its goroutine is parked and will not appear in the dump; this is normal, not an error. Use process_state to check the process state before requesting its goroutine.",
 		InputSchema: json.RawMessage(`{
 			"type": "object",
 			"properties": {
