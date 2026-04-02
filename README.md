@@ -22,3 +22,9 @@ Doc: https://docs.ergo.services/extra-library/applications/mcp
 Sidecar application that bundles Kubernetes health probes and Prometheus metrics into a single HTTP endpoint. Uses `actor/health` and `actor/metrics` internally; actors interact through helper functions in the `radar` package without importing the underlying dependencies.
 
 Doc: https://docs.ergo.services/extra-library/applications/radar
+
+## pulse
+
+OTLP tracing exporter application. Collects tracing observations from the node and exports them to any OTLP-compatible backend (Grafana Tempo, Jaeger) over HTTP with protobuf encoding. Uses a pool of worker actors for batching and flushing.
+
+Doc: https://docs.ergo.services/extra-library/applications/pulse
