@@ -304,6 +304,23 @@ func (s *session) buildActionRequest(action string, args map[string]any) (any, e
 		}
 		return inspect.RequestDoKill{PID: p}, nil
 
+	case "set_node_tracing_sampler":
+		typ, _ := args["type"].(string)
+		rate, _ := args["rate"].(float64)
+		limit, _ := args["limit"].(float64)
+		return inspect.RequestDoSetNodeTracingSampler{Type: typ, Rate: rate, Limit: int(limit)}, nil
+
+	case "set_process_tracing_sampler":
+		pidStr, _ := args["pid"].(string)
+		p, err := str2pid(s.node, s.creation, pidStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid pid: %s", err)
+		}
+		typ, _ := args["type"].(string)
+		rate, _ := args["rate"].(float64)
+		limit, _ := args["limit"].(float64)
+		return inspect.RequestDoSetProcessTracingSampler{PID: p, Type: typ, Rate: rate, Limit: int(limit)}, nil
+
 	case "set_log_level":
 		levelStr, _ := args["level"].(string)
 		level := parseLogLevel(levelStr)
@@ -950,6 +967,9 @@ func (s *session) buildInspectRequest(subType string, args map[string]any) (any,
 
 	case "event_list":
 		req := inspect.RequestInspectEventList{Limit: 500}
+		if v, ok := args["timestamp"].(float64); ok {
+			req.Timestamp = int64(v)
+		}
 		if v, ok := args["limit"].(float64); ok {
 			if v == -1 {
 				req.Limit = 100000
@@ -1017,6 +1037,28 @@ func (s *session) buildInspectRequest(subType string, args map[string]any) (any,
 		}
 		return req, nil
 
+	case "tracing_spans":
+		req := inspect.RequestInspectTracing{
+			Flags: gen.TracingFlagSend | gen.TracingFlagReceive | gen.TracingFlagProcs,
+			Limit: 500,
+		}
+		if v, ok := args["limit"].(float64); ok && v >= 1 {
+			req.Limit = int(v)
+		}
+		if v, ok := args["kinds"].(float64); ok {
+			req.Kinds = uint32(v)
+		}
+		if v, ok := args["points"].(float64); ok {
+			req.Points = uint32(v)
+		}
+		if v, ok := args["messagePattern"].(string); ok {
+			req.MessagePattern = v
+		}
+		if v, ok := args["messageExclude"].(bool); ok {
+			req.MessageExclude = v
+		}
+		return req, nil
+
 	case "application_tree":
 		req := inspect.RequestInspectApplicationTree{Limit: 1000}
 		if v, ok := args["app"].(string); ok && v != "" {
@@ -1074,6 +1116,8 @@ func extractEvent(result any) (gen.Event, error) {
 		return r.Event, nil
 	case inspect.ResponseInspectHeap:
 		return r.Event, nil
+	case inspect.ResponseInspectTracing:
+		return r.Event, nil
 	case error:
 		return gen.Event{}, r
 	}
@@ -1112,6 +1156,8 @@ func inspectEventToSSEType(name gen.Atom) string {
 		return "application_tree"
 	case strings.HasPrefix(n, "inspect_log"):
 		return "log"
+	case strings.HasPrefix(n, "inspect_tracing"):
+		return "tracing_spans"
 	case strings.HasPrefix(n, "inspect_heap"):
 		return "heap"
 	}
@@ -1181,13 +1227,14 @@ func subLookupKey(subType string, args map[string]any) string {
 		clName, _ := args["namePattern"].(string)
 		return fmt.Sprintf("%s:limit=%d:name=%s", subType, int(clLimit), clName)
 	case "event_list":
+		ts, _ := args["timestamp"].(float64)
 		limit, _ := args["limit"].(float64)
 		name, _ := args["namePattern"].(string)
 		notifyMode, _ := args["notifyMode"].(string)
 		bufferedMode, _ := args["bufferedMode"].(string)
 		minSubs, _ := args["minSubscribers"].(float64)
-		return fmt.Sprintf("%s:limit=%d:name=%s:notify=%s:buffered=%s:minsubs=%d",
-			subType, int(limit), name, notifyMode, bufferedMode, int(minSubs))
+		return fmt.Sprintf("%s:ts=%d:limit=%d:name=%s:notify=%s:buffered=%s:minsubs=%d",
+			subType, int(ts), int(limit), name, notifyMode, bufferedMode, int(minSubs))
 	case "heap":
 		limit, _ := args["limit"].(float64)
 		name, _ := args["name"].(string)
@@ -1203,6 +1250,9 @@ func subLookupKey(subType string, args map[string]any) string {
 			sort.Strings(levs)
 		}
 		return fmt.Sprintf("%s:%s:%v:%v:%v", subType, strings.Join(levs, ","), args["limit"], args["messagePattern"], args["messageExclude"])
+	case "tracing_spans":
+		limit, _ := args["limit"].(float64)
+		return fmt.Sprintf("%s:limit=%d", subType, int(limit))
 	}
 	return subType
 }
