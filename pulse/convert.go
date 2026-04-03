@@ -11,7 +11,10 @@
 // ParentSpanId builds the full chain:
 //
 //   - Delivered -> Sent (same message):  SpanID<<2 | 1
-//   - Processed -> Delivered (same message): SpanID<<2 | 2
+//   - Processed -> depends on Kind:
+//       Spawn:     Sent (same span):     SpanID<<2 | 1
+//       Terminate: parent Processed:     ParentSpanID<<2 | 3
+//       otherwise: Delivered (same msg): SpanID<<2 | 2
 //   - Sent -> parent Processed (chain parent): ParentSpanID<<2 | 3
 //   - Sent with ParentSpanID=0: root span (no parent)
 //
@@ -45,12 +48,18 @@
 //   nodeZ: resp.Sent        SpanId=77<<2|1  ParentSpanId=43<<2|3
 //   nodeX: resp.Delivered    SpanId=77<<2|2  ParentSpanId=77<<2|1
 //
-// TracingKind to OTLP SpanKind:
-//   Send      -> PRODUCER
-//   Request   -> CLIENT
-//   Response  -> SERVER
-//   Spawn     -> INTERNAL
-//   Terminate -> INTERNAL
+// TracingKind + TracingPoint to OTLP SpanKind:
+//   Send.Sent          -> PRODUCER
+//   Send.Delivered      -> CONSUMER
+//   Send.Processed      -> CONSUMER
+//   Request.Sent        -> CLIENT
+//   Request.Delivered   -> SERVER
+//   Request.Processed   -> SERVER
+//   Response.Sent       -> SERVER
+//   Response.Delivered  -> CLIENT
+//   Response.Processed  -> SERVER
+//   Spawn               -> INTERNAL
+//   Terminate           -> INTERNAL
 //
 // Attributes: ergo.span_id, ergo.point, ergo.kind, ergo.from, ergo.to,
 //             ergo.message, ergo.node, ergo.ref (if non-empty)
@@ -110,7 +119,10 @@ func convertSpan(s *gen.TracingSpan) *tracepb.Span {
 
 	// ParentSpanId:
 	// - Delivered (2) → parent is Sent (1) of same message: SpanID<<2|1
-	// - Processed (3) → parent is Delivered (2) of same message: SpanID<<2|2
+	// - Processed (3) → depends on Kind:
+	//     Spawn:     parent is Sent (1) of same span (no Delivered for Spawn)
+	//     Terminate: parent is Processed (3) of parent span (no Sent/Delivered)
+	//     otherwise: parent is Delivered (2) of same message
 	// - Sent with ParentSpanID != 0 → parent is Processed (3) of parent message
 	// - Sent with ParentSpanID == 0 → root span
 	var parentSpanID []byte
@@ -120,9 +132,24 @@ func convertSpan(s *gen.TracingSpan) *tracepb.Span {
 		binary.BigEndian.PutUint64(p[:], s.SpanID<<2|uint64(gen.TracingPointSent))
 		parentSpanID = p[:]
 	case gen.TracingPointProcessed:
-		var p [8]byte
-		binary.BigEndian.PutUint64(p[:], s.SpanID<<2|uint64(gen.TracingPointDelivered))
-		parentSpanID = p[:]
+		switch s.Kind {
+		case gen.TracingKindSpawn:
+			// Spawn has Sent + Processed (no Delivered)
+			var p [8]byte
+			binary.BigEndian.PutUint64(p[:], s.SpanID<<2|uint64(gen.TracingPointSent))
+			parentSpanID = p[:]
+		case gen.TracingKindTerminate:
+			// Terminate has only Processed (no Sent/Delivered)
+			if s.ParentSpanID != 0 {
+				var p [8]byte
+				binary.BigEndian.PutUint64(p[:], s.ParentSpanID<<2|uint64(gen.TracingPointProcessed))
+				parentSpanID = p[:]
+			}
+		default:
+			var p [8]byte
+			binary.BigEndian.PutUint64(p[:], s.SpanID<<2|uint64(gen.TracingPointDelivered))
+			parentSpanID = p[:]
+		}
 	case gen.TracingPointSent:
 		if s.ParentSpanID != 0 {
 			var p [8]byte
@@ -151,7 +178,7 @@ func convertSpan(s *gen.TracingSpan) *tracepb.Span {
 		SpanId:            spanID[:],
 		ParentSpanId:      parentSpanID,
 		Name:              name,
-		Kind:              mapSpanKind(s.Kind),
+		Kind:              mapSpanKind(s.Kind, s.Point),
 		StartTimeUnixNano: uint64(s.Timestamp),
 		EndTimeUnixNano:   uint64(s.Timestamp),
 		Attributes:        buildAttributes(s),
@@ -169,14 +196,26 @@ func convertSpan(s *gen.TracingSpan) *tracepb.Span {
 	return span
 }
 
-func mapSpanKind(k gen.TracingKind) tracepb.Span_SpanKind {
+func mapSpanKind(k gen.TracingKind, p gen.TracingPoint) tracepb.Span_SpanKind {
 	switch k {
 	case gen.TracingKindSend:
-		return tracepb.Span_SPAN_KIND_PRODUCER
+		if p == gen.TracingPointSent {
+			return tracepb.Span_SPAN_KIND_PRODUCER
+		}
+		return tracepb.Span_SPAN_KIND_CONSUMER
+
 	case gen.TracingKindRequest:
-		return tracepb.Span_SPAN_KIND_CLIENT
-	case gen.TracingKindResponse:
+		if p == gen.TracingPointSent {
+			return tracepb.Span_SPAN_KIND_CLIENT
+		}
 		return tracepb.Span_SPAN_KIND_SERVER
+
+	case gen.TracingKindResponse:
+		if p == gen.TracingPointDelivered {
+			return tracepb.Span_SPAN_KIND_CLIENT
+		}
+		return tracepb.Span_SPAN_KIND_SERVER
+
 	case gen.TracingKindSpawn, gen.TracingKindTerminate:
 		return tracepb.Span_SPAN_KIND_INTERNAL
 	}
