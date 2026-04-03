@@ -14,9 +14,9 @@
 // where timing gaps between siblings show network latency and processing time.
 //
 // Special cases:
-//   - Spawn.Processed -> Spawn.Sent (same span): SpanID<<2 | 1
-//   - Terminate.Processed -> parent Processed:   ParentSpanID<<2 | 3
-//   - ParentSpanID == 0 -> root span (no parent)
+//   - Processed with ParentSpanID==0 -> Sent (same message): SpanID<<2 | 1
+//     (framework omits ParentSpanID in actor.go sendSpanProcessed)
+//   - ParentSpanID == 0 for non-Processed -> root span (no parent)
 //
 // SpanId preservation: for remote messages, the ergo SpanID assigned by the
 // sending node is preserved on the receiving node (no re-assignment). This means
@@ -60,6 +60,7 @@
 //   Response.Processed  -> SERVER
 //   Spawn               -> INTERNAL
 //   Terminate           -> INTERNAL
+//
 //
 // Attributes: ergo.span_id, ergo.point, ergo.kind, ergo.from, ergo.to,
 //             ergo.message, ergo.node, ergo.ref (if non-empty)
@@ -121,12 +122,15 @@ func convertSpan(s *gen.TracingSpan) *tracepb.Span {
 	// All observation points of the same message share the same parent:
 	// the Processed point of the parent message (ParentSpanID<<2|3).
 	// Special cases:
+	//   - Processed with ParentSpanID==0: framework doesn't fill ParentSpanID
+	//     for Processed spans (actor.go sendSpanProcessed). Fall back to
+	//     Sent point of the same message (SpanID<<2|1) so Processed becomes
+	//     a child of Sent instead of a root span.
 	//   - Spawn.Processed → Spawn.Sent (SpanID<<2|1), no Delivered for Spawn
-	//   - ParentSpanID == 0 → root span (no parent)
 	var parentSpanID []byte
 	switch {
-	case s.Kind == gen.TracingKindSpawn && s.Point == gen.TracingPointProcessed:
-		// Spawn.Processed → parent is Spawn.Sent
+	case s.Point == gen.TracingPointProcessed && s.ParentSpanID == 0:
+		// Processed without parent → attach to Sent of same message
 		var p [8]byte
 		binary.BigEndian.PutUint64(p[:], s.SpanID<<2|uint64(gen.TracingPointSent))
 		parentSpanID = p[:]
@@ -153,19 +157,6 @@ func convertSpan(s *gen.TracingSpan) *tracepb.Span {
 		flags = 0x00000300 // HAS_IS_REMOTE | IS_REMOTE
 	}
 
-	// SpanLink: link Response.Delivered back to Request.Sent via Ref.
-	// This connects the caller's "response arrived" event to the
-	// original "request sent" event in the trace waterfall.
-	var links []*tracepb.Span_Link
-	if s.Kind == gen.TracingKindResponse && s.Point == gen.TracingPointDelivered && s.ParentSpanID != 0 {
-		var linkedSpanID [8]byte
-		binary.BigEndian.PutUint64(linkedSpanID[:], s.ParentSpanID<<2|uint64(gen.TracingPointSent))
-		links = append(links, &tracepb.Span_Link{
-			TraceId: traceID[:],
-			SpanId:  linkedSpanID[:],
-		})
-	}
-
 	span := &tracepb.Span{
 		TraceId:           traceID[:],
 		SpanId:            spanID[:],
@@ -176,7 +167,6 @@ func convertSpan(s *gen.TracingSpan) *tracepb.Span {
 		EndTimeUnixNano:   uint64(s.Timestamp),
 		Attributes:        buildAttributes(s),
 		Flags:             flags,
-		Links:             links,
 	}
 
 	// error status
