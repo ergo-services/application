@@ -1,5 +1,5 @@
-ergo.services/ergo v1.999.321-0.20260403061220-57de55050195 h1:4aSIT3hvVjmm2SpZ9mgFG+NKZsin8QygZ96TfNhUrUE=
-ergo.services/ergo v1.999.321-0.20260403061220-57de55050195/go.mod h1:bLQ6PoO6Mz/8gVuzvPv3xfMfo1P9w6rZV1WnMXMeMdg=
+ergo.services/ergo v1.999.321-0.20260403214130-6d42ea464f3d h1:T+vXZi0RyU5Jp+eM+ZNkxhjc6M4x8m73Jz3vRm9a2jk=
+ergo.services/ergo v1.999.321-0.20260403214130-6d42ea464f3d/go.mod h1:bLQ6PoO6Mz/8gVuzvPv3xfMfo1P9w6rZV1WnMXMeMdg=
 github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0 h1:bkypFPDjIYGfCYD5mRBvpqxfYX1YCS1PXdKYWi8FsN0=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0/go.mod h1:P+Lt/0by1T8bfcF3z737NnSbmxQAppXMRziHUxPOC8k=

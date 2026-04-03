@@ -118,15 +118,10 @@ func convertSpan(s *gen.TracingSpan) *tracepb.Span {
 	var spanID [8]byte
 	binary.BigEndian.PutUint64(spanID[:], s.SpanID<<2|uint64(s.Point))
 
-	// ParentSpanId: use ergo ParentSpanID directly for flat sibling layout.
-	// All observation points of the same message share the same parent:
-	// the Processed point of the parent message (ParentSpanID<<2|3).
-	// Special cases:
-	//   - Processed with ParentSpanID==0: framework doesn't fill ParentSpanID
-	//     for Processed spans (actor.go sendSpanProcessed). Fall back to
-	//     Sent point of the same message (SpanID<<2|1) so Processed becomes
-	//     a child of Sent instead of a root span.
-	//   - Spawn.Processed → Spawn.Sent (SpanID<<2|1), no Delivered for Spawn
+	// ParentSpanId: Sent is the anchor for each message.
+	// Delivered and Processed are children of Sent (SpanID<<2|1).
+	// Sent's parent is the Processed point of the parent message (ParentSpanID<<2|3).
+	// Terminate has only Processed (no Sent) — uses parent context directly.
 	var parentSpanID []byte
 	switch s.Point {
 	case gen.TracingPointSent:
@@ -135,11 +130,25 @@ func convertSpan(s *gen.TracingSpan) *tracepb.Span {
 			binary.BigEndian.PutUint64(p[:], s.ParentSpanID<<2|uint64(gen.TracingPointProcessed))
 			parentSpanID = p[:]
 		}
-	case gen.TracingPointDelivered, gen.TracingPointProcessed:
-		// Both are children of Sent (same message)
+	case gen.TracingPointDelivered:
+		// child of Sent (same message)
 		var p [8]byte
 		binary.BigEndian.PutUint64(p[:], s.SpanID<<2|uint64(gen.TracingPointSent))
 		parentSpanID = p[:]
+	case gen.TracingPointProcessed:
+		if s.Kind == gen.TracingKindTerminate {
+			// Terminate has only Processed (no Sent/Delivered)
+			if s.ParentSpanID != 0 {
+				var p [8]byte
+				binary.BigEndian.PutUint64(p[:], s.ParentSpanID<<2|uint64(gen.TracingPointProcessed))
+				parentSpanID = p[:]
+			}
+		} else {
+			// child of Sent (same message)
+			var p [8]byte
+			binary.BigEndian.PutUint64(p[:], s.SpanID<<2|uint64(gen.TracingPointSent))
+			parentSpanID = p[:]
+		}
 	}
 
 	// Name: "behavior kind.point message_type"
