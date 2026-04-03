@@ -153,6 +153,19 @@ func convertSpan(s *gen.TracingSpan) *tracepb.Span {
 		flags = 0x00000300 // HAS_IS_REMOTE | IS_REMOTE
 	}
 
+	// SpanLink: link Response.Delivered back to Request.Sent via Ref.
+	// This connects the caller's "response arrived" event to the
+	// original "request sent" event in the trace waterfall.
+	var links []*tracepb.Span_Link
+	if s.Kind == gen.TracingKindResponse && s.Point == gen.TracingPointDelivered && s.ParentSpanID != 0 {
+		var linkedSpanID [8]byte
+		binary.BigEndian.PutUint64(linkedSpanID[:], s.ParentSpanID<<2|uint64(gen.TracingPointSent))
+		links = append(links, &tracepb.Span_Link{
+			TraceId: traceID[:],
+			SpanId:  linkedSpanID[:],
+		})
+	}
+
 	span := &tracepb.Span{
 		TraceId:           traceID[:],
 		SpanId:            spanID[:],
@@ -163,6 +176,7 @@ func convertSpan(s *gen.TracingSpan) *tracepb.Span {
 		EndTimeUnixNano:   uint64(s.Timestamp),
 		Attributes:        buildAttributes(s),
 		Flags:             flags,
+		Links:             links,
 	}
 
 	// error status
