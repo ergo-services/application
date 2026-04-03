@@ -8,15 +8,15 @@
 // This ensures uniqueness within a TraceID (each point gets a distinct SpanId)
 // and allows any node to compute the SpanId of any other point for the same message.
 //
-// ParentSpanId uses the ergo ParentSpanID directly. All observation points
-// of the same message share the same parent — the Processed point of the
-// parent message (ParentSpanID<<2|3). This produces a flat sibling layout
-// where timing gaps between siblings show network latency and processing time.
+// ParentSpanId mapping:
+//   - Sent: parent is Processed of parent message (ParentSpanID<<2|3),
+//     or root span if ParentSpanID == 0
+//   - Delivered: parent is Sent of same message (SpanID<<2|1)
+//   - Processed: parent is Sent of same message (SpanID<<2|1)
 //
-// Special cases:
-//   - Processed with ParentSpanID==0 -> Sent (same message): SpanID<<2 | 1
-//     (framework omits ParentSpanID in actor.go sendSpanProcessed)
-//   - ParentSpanID == 0 for non-Processed -> root span (no parent)
+// This produces a tree where Sent is the anchor for each message,
+// with Delivered and Processed as its children. Response spans nest
+// under Request.Processed, forming a natural call hierarchy.
 //
 // SpanId preservation: for remote messages, the ergo SpanID assigned by the
 // sending node is preserved on the receiving node (no re-assignment). This means
@@ -26,27 +26,27 @@
 // Example: A@nodeX sends x to B@nodeY during processing of w(SpanID=10):
 //
 //   nodeX: x.Sent       SpanId=42<<2|1  ParentSpanId=10<<2|3
-//   nodeY: x.Delivered   SpanId=42<<2|2  ParentSpanId=10<<2|3
-//   nodeY: x.Processed   SpanId=42<<2|3  ParentSpanId=10<<2|3
+//   nodeY: x.Delivered   SpanId=42<<2|2  ParentSpanId=42<<2|1
+//   nodeY: x.Processed   SpanId=42<<2|3  ParentSpanId=42<<2|1
 //
 // Example: Call+Response A@nodeX -> B@nodeY:
 //
 //   nodeX: req.Sent       SpanId=42<<2|1  ParentSpanId=chain
-//   nodeY: req.Delivered   SpanId=42<<2|2  ParentSpanId=chain
-//   nodeY: req.Processed   SpanId=42<<2|3  ParentSpanId=chain
+//   nodeY: req.Delivered   SpanId=42<<2|2  ParentSpanId=42<<2|1
+//   nodeY: req.Processed   SpanId=42<<2|3  ParentSpanId=42<<2|1
 //   nodeY: resp.Sent       SpanId=77<<2|1  ParentSpanId=42<<2|3
-//   nodeX: resp.Delivered   SpanId=77<<2|2  ParentSpanId=42<<2|3
+//   nodeX: resp.Delivered   SpanId=77<<2|2  ParentSpanId=77<<2|1
 //
 // Example: Forward A@nodeX -> B@nodeY -> C@nodeZ -> response -> A:
 //
 //   nodeX: req.Sent        SpanId=42<<2|1  ParentSpanId=chain
-//   nodeY: req.Delivered    SpanId=42<<2|2  ParentSpanId=chain
-//   nodeY: req.Processed    SpanId=42<<2|3  ParentSpanId=chain
+//   nodeY: req.Delivered    SpanId=42<<2|2  ParentSpanId=42<<2|1
+//   nodeY: req.Processed    SpanId=42<<2|3  ParentSpanId=42<<2|1
 //   nodeY: fwd.Sent         SpanId=43<<2|1  ParentSpanId=42<<2|3
-//   nodeZ: fwd.Delivered    SpanId=43<<2|2  ParentSpanId=42<<2|3
-//   nodeZ: fwd.Processed    SpanId=43<<2|3  ParentSpanId=42<<2|3
+//   nodeZ: fwd.Delivered    SpanId=43<<2|2  ParentSpanId=43<<2|1
+//   nodeZ: fwd.Processed    SpanId=43<<2|3  ParentSpanId=43<<2|1
 //   nodeZ: resp.Sent        SpanId=77<<2|1  ParentSpanId=43<<2|3
-//   nodeX: resp.Delivered    SpanId=77<<2|2  ParentSpanId=43<<2|3
+//   nodeX: resp.Delivered    SpanId=77<<2|2  ParentSpanId=77<<2|1
 //
 // TracingKind + TracingPoint to OTLP SpanKind:
 //   Send.Sent          -> PRODUCER
@@ -128,18 +128,18 @@ func convertSpan(s *gen.TracingSpan) *tracepb.Span {
 	//     a child of Sent instead of a root span.
 	//   - Spawn.Processed → Spawn.Sent (SpanID<<2|1), no Delivered for Spawn
 	var parentSpanID []byte
-	switch {
-	case s.Point == gen.TracingPointProcessed && s.ParentSpanID == 0:
-		// Processed without parent → attach to Sent of same message
-		var p [8]byte
-		binary.BigEndian.PutUint64(p[:], s.SpanID<<2|uint64(gen.TracingPointSent))
-		parentSpanID = p[:]
-	default:
+	switch s.Point {
+	case gen.TracingPointSent:
 		if s.ParentSpanID != 0 {
 			var p [8]byte
 			binary.BigEndian.PutUint64(p[:], s.ParentSpanID<<2|uint64(gen.TracingPointProcessed))
 			parentSpanID = p[:]
 		}
+	case gen.TracingPointDelivered, gen.TracingPointProcessed:
+		// Both are children of Sent (same message)
+		var p [8]byte
+		binary.BigEndian.PutUint64(p[:], s.SpanID<<2|uint64(gen.TracingPointSent))
+		parentSpanID = p[:]
 	}
 
 	// Name: "behavior kind.point message_type"
