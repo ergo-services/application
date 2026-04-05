@@ -7,8 +7,7 @@ import (
 )
 
 const (
-	DefaultEndpoint      = "localhost:4318"
-	DefaultURLPath       = "/v1/traces"
+	DefaultURL = "http://localhost:4318/v1/traces"
 	DefaultBatchSize     = 512
 	DefaultFlushInterval = 5 * time.Second
 	DefaultPoolSize      = 3
@@ -17,13 +16,9 @@ const (
 
 // Options configures the Pulse OTLP/HTTP tracing exporter application.
 type Options struct {
-	// Endpoint is the OTLP collector address in host:port format.
-	// Default: "localhost:4318"
-	Endpoint string
-
-	// Insecure disables TLS (uses http instead of https).
-	// Default: false
-	Insecure bool
+	// URL is the full OTLP/HTTP collector URL (e.g. "http://tempo:4318/v1/traces").
+	// Default: "http://localhost:4318/v1/traces"
+	URL string
 
 	// Headers are added to every export HTTP request.
 	// Use for authentication tokens, API keys, etc.
@@ -52,8 +47,8 @@ type Options struct {
 }
 
 func applyDefaults(o Options) Options {
-	if o.Endpoint == "" {
-		o.Endpoint = DefaultEndpoint
+	if o.URL == "" {
+		o.URL = DefaultURL
 	}
 	if o.BatchSize < 1 {
 		o.BatchSize = DefaultBatchSize

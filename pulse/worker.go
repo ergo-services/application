@@ -36,12 +36,7 @@ func (w *worker) Init(args ...any) error {
 	// pre-allocate batch
 	w.batch = make([]gen.TracingSpan, 0, w.options.BatchSize)
 
-	// build URL
-	scheme := "https"
-	if w.options.Insecure {
-		scheme = "http"
-	}
-	w.url = fmt.Sprintf("%s://%s%s", scheme, w.options.Endpoint, DefaultURLPath)
+	w.url = w.options.URL
 
 	// own HTTP client with keep-alive
 	w.client = &http.Client{
