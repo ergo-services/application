@@ -996,6 +996,14 @@ func (s *session) buildInspectRequest(subType string, args map[string]any) (any,
 				req.Buffered = -1
 			}
 		}
+		if v, ok := args["openMode"].(string); ok {
+			switch v {
+			case "yes":
+				req.Open = 1
+			case "no":
+				req.Open = -1
+			}
+		}
 		if v, ok := args["minSubscribers"].(float64); ok && v > 0 {
 			req.MinSubscribers = int64(v)
 		}
