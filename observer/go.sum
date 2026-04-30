@@ -1,4 +1,4 @@
-ergo.services/ergo v1.999.321-0.20260430094415-94d5a52dac93 h1:mZiDN1Pwc9W1zQykU51qCMy641OA0nFd1yRIqzvwqWM=
-ergo.services/ergo v1.999.321-0.20260430094415-94d5a52dac93/go.mod h1:bLQ6PoO6Mz/8gVuzvPv3xfMfo1P9w6rZV1WnMXMeMdg=
+ergo.services/ergo v1.999.321-0.20260430142643-a2ae64677f4a h1:zB4jRpwza8VudgQQ4iDxeiZGL1duRlQXtHkEIrc7WD0=
+ergo.services/ergo v1.999.321-0.20260430142643-a2ae64677f4a/go.mod h1:bLQ6PoO6Mz/8gVuzvPv3xfMfo1P9w6rZV1WnMXMeMdg=
 ergo.services/meta/sse v0.2.0 h1:21y6hAngeQUDxgOSQXMFebGiFG3WGJN9tRo+wz+YSu8=
 ergo.services/meta/sse v0.2.0/go.mod h1:u/UBSIQIVkgf2wDLG0yxAdE6h4Kmy0MSVdpQgFqBJG8=
