@@ -3,24 +3,7 @@ package mcp
 import (
 	"encoding/json"
 	"time"
-
-	"ergo.services/ergo/gen"
-	"ergo.services/ergo/net/edf"
 )
-
-func init() {
-	types := []any{
-		ToolCallRequest{},
-		ToolCallResponse{},
-	}
-	for _, t := range types {
-		err := edf.RegisterTypeOf(t)
-		if err == nil || err == gen.ErrTaken {
-			continue
-		}
-		panic(err)
-	}
-}
 
 // ToolCallRequest is sent via Call for inter-node tool dispatch.
 // Entry point worker -> remote Pool -> remote worker HandleCall.

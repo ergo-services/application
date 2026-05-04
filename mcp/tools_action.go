@@ -149,7 +149,7 @@ func toolMessageTypes(w gen.Process, params json.RawMessage) (any, error) {
 		json.Unmarshal(params, &p)
 	}
 
-	names := listRegisteredTypes()
+	names := listRegisteredTypes(w.Node().Network())
 	sort.Strings(names)
 
 	if p.Filter != "" {
@@ -180,7 +180,7 @@ func toolMessageTypeInfo(w gen.Process, params json.RawMessage) (any, error) {
 		return nil, fmt.Errorf("invalid params: %w", err)
 	}
 
-	t, ok := lookupType(p.TypeName)
+	t, ok := w.Node().Network().LookupType(p.TypeName)
 	if ok == false {
 		return nil, fmt.Errorf("type not found: %s. Use message_types to list registered types", p.TypeName)
 	}
@@ -211,7 +211,7 @@ func toolSendMessage(w gen.Process, params json.RawMessage) (any, error) {
 		return nil, fmt.Errorf("invalid params: %w", err)
 	}
 
-	message, err := buildMessage(p.TypeName, p.Message)
+	message, err := buildMessage(w.Node().Network(), p.TypeName, p.Message)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +249,7 @@ func toolCallProcess(w gen.Process, params json.RawMessage) (any, error) {
 		return nil, fmt.Errorf("invalid params: %w", err)
 	}
 
-	request, err := buildMessage(p.TypeName, p.Request)
+	request, err := buildMessage(w.Node().Network(), p.TypeName, p.Request)
 	if err != nil {
 		return nil, err
 	}
@@ -278,7 +278,7 @@ func toolCallProcess(w gen.Process, params json.RawMessage) (any, error) {
 }
 
 // buildMessage constructs a typed or raw message from JSON params
-func buildMessage(typeName string, data json.RawMessage) (any, error) {
+func buildMessage(network gen.Network, typeName string, data json.RawMessage) (any, error) {
 	// Some MCP clients pass JSON objects as quoted strings.
 	// Detect and unwrap: "{\"Seq\":1}" -> {"Seq":1}
 	if len(data) > 1 && data[0] == '"' {
@@ -292,7 +292,7 @@ func buildMessage(typeName string, data json.RawMessage) (any, error) {
 	}
 
 	if typeName != "" {
-		t, ok := lookupType(typeName)
+		t, ok := network.LookupType(typeName)
 		if ok == false {
 			return nil, fmt.Errorf("type not found: %s. Use message_types to list registered types", typeName)
 		}

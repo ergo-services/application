@@ -1,6 +1,8 @@
 package mcp
 
 import (
+	"fmt"
+
 	"ergo.services/ergo/gen"
 )
 
@@ -21,6 +23,13 @@ type mcpApp struct {
 }
 
 func (a *mcpApp) Load(node gen.Node, args ...any) (gen.ApplicationSpec, error) {
+	err := node.Network().RegisterTypes([]any{
+		ToolCallRequest{},
+		ToolCallResponse{},
+	})
+	if err != nil {
+		return gen.ApplicationSpec{}, fmt.Errorf("mcp types: %w", err)
+	}
 	return gen.ApplicationSpec{
 		Name: AppName,
 		Group: []gen.ApplicationMemberSpec{

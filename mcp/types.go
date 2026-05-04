@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"ergo.services/ergo/net/edf"
+	"ergo.services/ergo/gen"
 )
 
 // typeFieldInfo describes a struct field for the AI
@@ -17,19 +17,14 @@ type typeFieldInfo struct {
 	Tag  string `json:"tag,omitempty"`
 }
 
-// listRegisteredTypes returns all EDF-registered types with short names
-func listRegisteredTypes() []string {
-	types := edf.RegisteredTypes()
+// listRegisteredTypes extracts the names from network's registered type list.
+func listRegisteredTypes(network gen.Network) []string {
+	types := network.RegisteredTypes()
 	names := make([]string, 0, len(types))
-	for fullName := range types {
-		names = append(names, fullName)
+	for _, t := range types {
+		names = append(names, t.Name)
 	}
 	return names
-}
-
-// lookupType finds a registered type by full or short name
-func lookupType(name string) (reflect.Type, bool) {
-	return edf.LookupType(name)
 }
 
 // describeType returns field info for a struct type
