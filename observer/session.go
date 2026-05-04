@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"ergo.services/ergo/act"
 	"ergo.services/ergo/app/system/inspect"
@@ -207,7 +208,9 @@ func (s *session) handleAction(req actionRequest) (any, error) {
 	}
 
 	inspectPID := gen.ProcessID{Name: inspect.Name, Node: s.node}
+	callStart := time.Now()
 	result, err := s.CallWithTimeout(inspectPID, inspectReq, defaultCallTimeout)
+	s.Log().Debug("session %s: action %s call took %s", s.id, req.Action, time.Since(callStart))
 	if err != nil {
 		return apiResponse{Error: fmt.Sprintf("action %s: %s", req.Action, err)}, nil
 	}
@@ -589,7 +592,9 @@ func (s *session) doSubscribe(subType string, args map[string]any) (any, error) 
 
 	// call system_inspect to start/reuse the inspector child
 	inspectPID := gen.ProcessID{Name: inspect.Name, Node: s.node}
+	callStart := time.Now()
 	result, err := s.CallWithTimeout(inspectPID, inspectReq, defaultCallTimeout)
+	s.Log().Debug("session %s: inspect call %s took %s", s.id, subType, time.Since(callStart))
 	if err != nil {
 		return apiResponse{Error: fmt.Sprintf("inspect call: %s", err)}, nil
 	}
@@ -606,7 +611,9 @@ func (s *session) doSubscribe(subType string, args map[string]any) (any, error) 
 	lookupKey := subLookupKey(subType, args)
 	if oldEventKey, exist := s.subIndex[lookupKey]; exist && oldEventKey != eventKey {
 		if ev, ok := s.subscriptions[oldEventKey]; ok {
+			demonStart := time.Now()
 			s.DemonitorEvent(ev)
+			s.Log().Debug("session %s: demonitor (replace) %s took %s", s.id, oldEventKey, time.Since(demonStart))
 			delete(s.subscriptions, oldEventKey)
 		}
 		delete(s.subIndex, lookupKey)
@@ -619,8 +626,11 @@ func (s *session) doSubscribe(subType string, args map[string]any) (any, error) 
 	}
 
 	// monitor the inspect event
-	if _, err := s.MonitorEvent(event); err != nil {
-		return apiResponse{Error: fmt.Sprintf("monitor: %s", err)}, nil
+	monStart := time.Now()
+	_, monErr := s.MonitorEvent(event)
+	s.Log().Debug("session %s: monitor %s took %s", s.id, eventKey, time.Since(monStart))
+	if monErr != nil {
+		return apiResponse{Error: fmt.Sprintf("monitor: %s", monErr)}, nil
 	}
 
 	s.subscriptions[eventKey] = event
@@ -643,7 +653,9 @@ func (s *session) doUnsubscribe(subType string, args map[string]any) {
 	}
 
 	if ev, ok := s.subscriptions[eventKey]; ok {
+		demonStart := time.Now()
 		s.DemonitorEvent(ev)
+		s.Log().Debug("session %s: demonitor %s took %s", s.id, eventKey, time.Since(demonStart))
 		delete(s.subscriptions, eventKey)
 	}
 	delete(s.subIndex, lookupKey)
