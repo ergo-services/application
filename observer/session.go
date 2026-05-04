@@ -232,6 +232,12 @@ func (s *session) handleAction(req actionRequest) (any, error) {
 		}
 		return apiResponse{OK: true, Data: r}, nil
 	}
+	if r, ok := result.(inspect.ResponseDoTypes); ok {
+		if r.Error != nil {
+			return apiResponse{Error: r.Error.Error()}, nil
+		}
+		return apiResponse{OK: true, Data: r}, nil
+	}
 	return apiResponse{OK: true}, nil
 }
 
@@ -463,6 +469,9 @@ func (s *session) buildActionRequest(action string, args map[string]any) (any, e
 	case "heap":
 		minBytes, _ := args["minBytes"].(float64)
 		return inspect.RequestDoHeapProfile{MinBytes: int64(minBytes)}, nil
+
+	case "types":
+		return inspect.RequestDoTypes{}, nil
 	}
 	return nil, fmt.Errorf("unknown action: %s", action)
 }
