@@ -1,4 +1,4 @@
-ergo.services/ergo v1.999.321-0.20260505142332-e69de04d5e7d h1:TkLLbCWs1Mjj1vpUbS2ljV0h43L4JBbBGBWZT3pTYX4=
-ergo.services/ergo v1.999.321-0.20260505142332-e69de04d5e7d/go.mod h1:bLQ6PoO6Mz/8gVuzvPv3xfMfo1P9w6rZV1WnMXMeMdg=
+ergo.services/ergo v1.999.321-0.20260505182312-66331bb414ac h1:IsJaSL5FFh/IM4u9PZ97p1+FXSc32jDS2R8OfjA8J5o=
+ergo.services/ergo v1.999.321-0.20260505182312-66331bb414ac/go.mod h1:2WcCdXUIZvCfy9Kkac3Sx6V/tB23Mx3yK6xz77hRfbM=
 github.com/google/pprof v0.0.0-20260302011040-a15ffb7f9dcc h1:VBbFa1lDYWEeV5FZKUiYKYT0VxCp9twUmmaq9eb8sXw=
 github.com/google/pprof v0.0.0-20260302011040-a15ffb7f9dcc/go.mod h1:MxpfABSjhmINe3F1It9d+8exIHFvUqtLIRCdOGNXqiI=
