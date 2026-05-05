@@ -3,7 +3,7 @@ module ergo.services/application/pulse
 go 1.20
 
 require (
-	ergo.services/ergo v1.999.321-0.20260505121347-9d5fe8b77956
+	ergo.services/ergo v1.999.321-0.20260505142332-e69de04d5e7d
 	go.opentelemetry.io/proto/otlp v1.3.1
 	google.golang.org/protobuf v1.34.2
 )
