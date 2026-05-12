@@ -3,6 +3,7 @@ package mcp
 import (
 	"fmt"
 
+	"ergo.services/ergo/app"
 	"ergo.services/ergo/gen"
 )
 
@@ -19,11 +20,12 @@ func CreateApp(options Options) gen.ApplicationBehavior {
 }
 
 type mcpApp struct {
+	app.Application
 	options Options
 }
 
-func (a *mcpApp) Load(node gen.Node, args ...any) (gen.ApplicationSpec, error) {
-	err := node.Network().RegisterTypes([]any{
+func (a *mcpApp) Load(args ...any) (gen.ApplicationSpec, error) {
+	err := a.Node().Network().RegisterTypes([]any{
 		ToolCallRequest{},
 		ToolCallResponse{},
 	})
@@ -42,6 +44,3 @@ func (a *mcpApp) Load(node gen.Node, args ...any) (gen.ApplicationSpec, error) {
 		LogLevel: a.options.LogLevel,
 	}, nil
 }
-
-func (a *mcpApp) Start(mode gen.ApplicationMode) {}
-func (a *mcpApp) Terminate(reason error)         {}

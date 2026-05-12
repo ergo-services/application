@@ -1,6 +1,7 @@
 package observer
 
 import (
+	"ergo.services/ergo/app"
 	"ergo.services/ergo/app/system"
 	"ergo.services/ergo/gen"
 )
@@ -19,14 +20,15 @@ func CreateApp(options Options) gen.ApplicationBehavior {
 	if options.PoolSize < 1 {
 		options.PoolSize = defaultPoolSize
 	}
-	return &app{options: options}
+	return &observerApp{options: options}
 }
 
-type app struct {
+type observerApp struct {
+	app.Application
 	options Options
 }
 
-func (a *app) Load(node gen.Node, args ...any) (gen.ApplicationSpec, error) {
+func (a *observerApp) Load(args ...any) (gen.ApplicationSpec, error) {
 	spec := gen.ApplicationSpec{
 		Name:        appName,
 		Description: "Observer Application v2 (SSE)",
@@ -56,6 +58,3 @@ func (a *app) Load(node gen.Node, args ...any) (gen.ApplicationSpec, error) {
 	}
 	return spec, nil
 }
-
-func (a *app) Start(mode gen.ApplicationMode) {}
-func (a *app) Terminate(reason error)         {}

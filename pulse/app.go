@@ -1,6 +1,7 @@
 package pulse
 
 import (
+	"ergo.services/ergo/app"
 	"ergo.services/ergo/gen"
 )
 
@@ -17,10 +18,11 @@ func CreateApp(options Options) gen.ApplicationBehavior {
 }
 
 type pulseApp struct {
+	app.Application
 	options Options
 }
 
-func (a *pulseApp) Load(node gen.Node, args ...any) (gen.ApplicationSpec, error) {
+func (a *pulseApp) Load(args ...any) (gen.ApplicationSpec, error) {
 	return gen.ApplicationSpec{
 		Name:        Name,
 		Description: "Pulse OTLP/HTTP Tracing Exporter",
@@ -38,6 +40,3 @@ func (a *pulseApp) Load(node gen.Node, args ...any) (gen.ApplicationSpec, error)
 		},
 	}, nil
 }
-
-func (a *pulseApp) Start(mode gen.ApplicationMode) {}
-func (a *pulseApp) Terminate(reason error)         {}

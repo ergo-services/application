@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"ergo.services/actor/metrics"
+	"ergo.services/ergo/app"
 	"ergo.services/ergo/gen"
 )
 
@@ -29,10 +30,11 @@ func CreateApp(options Options) gen.ApplicationBehavior {
 }
 
 type radarApp struct {
+	app.Application
 	options Options
 }
 
-func (a *radarApp) Load(node gen.Node, args ...any) (gen.ApplicationSpec, error) {
+func (a *radarApp) Load(args ...any) (gen.ApplicationSpec, error) {
 	mux := http.NewServeMux()
 	shared := metrics.NewShared()
 
@@ -54,6 +56,3 @@ func (a *radarApp) Load(node gen.Node, args ...any) (gen.ApplicationSpec, error)
 		},
 	}, nil
 }
-
-func (a *radarApp) Start(mode gen.ApplicationMode) {}
-func (a *radarApp) Terminate(reason error)         {}
