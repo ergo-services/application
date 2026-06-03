@@ -38,6 +38,7 @@ func (s *session) Init(args ...any) error {
 	s.subscriptions = make(map[string]gen.Event)
 	s.subIndex = make(map[string]string)
 
+	s.SetProcessKind(gen.ProcessKindSession)
 	s.Log().SetLogger("default")
 
 	// link to SSE connection meta; session dies when SSE dies
@@ -236,6 +237,12 @@ func (s *session) handleAction(req actionRequest) (any, error) {
 		return apiResponse{OK: true, Data: r}, nil
 	}
 	if r, ok := result.(inspect.ResponseDoTypes); ok {
+		if r.Error != nil {
+			return apiResponse{Error: r.Error.Error()}, nil
+		}
+		return apiResponse{OK: true, Data: r}, nil
+	}
+	if r, ok := result.(inspect.ResponseDoAppTree); ok {
 		if r.Error != nil {
 			return apiResponse{Error: r.Error.Error()}, nil
 		}
@@ -475,6 +482,16 @@ func (s *session) buildActionRequest(action string, args map[string]any) (any, e
 
 	case "types":
 		return inspect.RequestDoTypes{}, nil
+
+	case "app_tree":
+		req := inspect.RequestDoAppTree{Limit: 1000}
+		if v, ok := args["app"].(string); ok && v != "" {
+			req.Application = gen.Atom(v)
+		}
+		if v, ok := args["limit"].(float64); ok && v >= 1 {
+			req.Limit = int(v)
+		}
+		return req, nil
 	}
 	return nil, fmt.Errorf("unknown action: %s", action)
 }
@@ -1088,16 +1105,6 @@ func (s *session) buildInspectRequest(subType string, args map[string]any) (any,
 		}
 		return req, nil
 
-	case "application_tree":
-		req := inspect.RequestInspectApplicationTree{Limit: 1000}
-		if v, ok := args["app"].(string); ok && v != "" {
-			req.Application = gen.Atom(v)
-		}
-		if v, ok := args["limit"].(float64); ok && v >= 1 {
-			req.Limit = int(v)
-		}
-		return req, nil
-
 	case "heap":
 		req := inspect.RequestInspectHeap{Limit: 100}
 		if v, ok := args["limit"].(float64); ok && v >= 1 {
@@ -1141,8 +1148,6 @@ func extractEvent(result any) (gen.Event, error) {
 		return r.Event, nil
 	case inspect.ResponseInspectMetaState:
 		return r.Event, nil
-	case inspect.ResponseInspectApplicationTree:
-		return r.Event, nil
 	case inspect.ResponseInspectHeap:
 		return r.Event, nil
 	case inspect.ResponseInspectTracing:
@@ -1181,8 +1186,6 @@ func inspectEventToSSEType(name gen.Atom) string {
 		return "event_list"
 	case n == "inspect_application_list":
 		return "application_list"
-	case strings.HasPrefix(n, "inspect_application_tree"):
-		return "application_tree"
 	case strings.HasPrefix(n, "inspect_log"):
 		return "log"
 	case strings.HasPrefix(n, "inspect_tracing"):
@@ -1232,10 +1235,6 @@ func subLookupKey(subType string, args map[string]any) string {
 		}
 		if alias != "" {
 			return subType + ":alias=" + alias
-		}
-	case "application_tree":
-		if app, ok := args["app"].(string); ok {
-			return subType + ":app=" + app
 		}
 	case "process_list":
 		start, _ := args["pidStart"].(float64)

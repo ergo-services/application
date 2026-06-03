@@ -4,7 +4,7 @@ import "ergo.services/ergo/gen"
 
 const (
 	DefaultPort       uint16 = 9911
-	defaultPoolSize   int    = 10
+	defaultPoolSize   int    = 25
 	defaultCallTimeout int   = 5 // seconds
 )
 
