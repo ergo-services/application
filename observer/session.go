@@ -248,6 +248,12 @@ func (s *session) handleAction(req actionRequest) (any, error) {
 		}
 		return apiResponse{OK: true, Data: r}, nil
 	}
+	if r, ok := result.(inspect.ResponseDoSubtree); ok {
+		if r.Error != nil {
+			return apiResponse{Error: r.Error.Error()}, nil
+		}
+		return apiResponse{OK: true, Data: r}, nil
+	}
 	return apiResponse{OK: true}, nil
 }
 
@@ -488,6 +494,21 @@ func (s *session) buildActionRequest(action string, args map[string]any) (any, e
 		if v, ok := args["app"].(string); ok && v != "" {
 			req.Application = gen.Atom(v)
 		}
+		if v, ok := args["limit"].(float64); ok && v >= 1 {
+			req.Limit = int(v)
+		}
+		return req, nil
+
+	case "subtree":
+		pidStr, _ := args["pid"].(string)
+		if pidStr == "" {
+			return nil, fmt.Errorf("pid is required")
+		}
+		p, err := str2pid(s.node, s.creation, pidStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid pid: %s", err)
+		}
+		req := inspect.RequestDoSubtree{PID: p, Limit: 1000}
 		if v, ok := args["limit"].(float64); ok && v >= 1 {
 			req.Limit = int(v)
 		}

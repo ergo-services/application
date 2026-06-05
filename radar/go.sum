@@ -2,8 +2,8 @@ ergo.services/actor/health v0.0.0-20260603071342-e9519d110a31 h1:2XjC3hj8mrYZMMM
 ergo.services/actor/health v0.0.0-20260603071342-e9519d110a31/go.mod h1:YsSTn+AC+7n2GD/w0EKZuVFQ/zEV8iRNZTIXvow3EKo=
 ergo.services/actor/metrics v0.2.2-0.20260603071342-e9519d110a31 h1:XEtp2fIVA1DNctXnlRYC1ymoFtqMrH58T3DDByK7fuQ=
 ergo.services/actor/metrics v0.2.2-0.20260603071342-e9519d110a31/go.mod h1:IvYR3kpk0YRal6SkHHOoUyIpHe+jXopZ9tTsxfnbSZw=
-ergo.services/ergo v1.999.321-0.20260603070721-22205ac0e0c4 h1:0wolarrz3O6Coww+AIUZovqXuykuKLGifP3/LABPnaA=
-ergo.services/ergo v1.999.321-0.20260603070721-22205ac0e0c4/go.mod h1:2WcCdXUIZvCfy9Kkac3Sx6V/tB23Mx3yK6xz77hRfbM=
+ergo.services/ergo v1.999.321-0.20260604080356-c601c4697361 h1:Xh+sAxIVgfNzgeYg1i2WEGataixeNINX5d1lVGVifQc=
+ergo.services/ergo v1.999.321-0.20260604080356-c601c4697361/go.mod h1:2WcCdXUIZvCfy9Kkac3Sx6V/tB23Mx3yK6xz77hRfbM=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
