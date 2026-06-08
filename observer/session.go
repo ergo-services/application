@@ -879,25 +879,37 @@ func (s *session) sendInitialData(subType string, result any) {
 		if ok == false {
 			return
 		}
-		// send node_meta event with OS, Arch, Cores, CRC32, Timezone
+		// send node_meta event with OS, Arch, Cores, CRC32, Timezone + build info
 		meta := struct {
-			OS        string      `json:"OS"`
-			Arch      string      `json:"Arch"`
-			Cores     int         `json:"Cores"`
-			Timezone  string      `json:"Timezone"`
-			GoVersion string      `json:"GoVersion"`
-			CRC32     string      `json:"CRC32"`
-			Version   gen.Version `json:"Version"`
-			Creation  int64       `json:"Creation"`
+			OS            string      `json:"OS"`
+			Arch          string      `json:"Arch"`
+			Cores         int         `json:"Cores"`
+			Timezone      string      `json:"Timezone"`
+			GoVersion     string      `json:"GoVersion"`
+			CRC32         string      `json:"CRC32"`
+			Version       gen.Version `json:"Version"`
+			Creation      int64       `json:"Creation"`
+			BuildMain     string      `json:"BuildMain"`
+			BuildRevision string      `json:"BuildRevision"`
+			BuildModified bool        `json:"BuildModified"`
+			BuildSettings []string    `json:"BuildSettings"`
+			BuildDeps     []string    `json:"BuildDeps"`
+			BuildReplaces []string    `json:"BuildReplaces"`
 		}{
-			OS:        r.OS,
-			Arch:      r.Arch,
-			Cores:     r.Cores,
-			Timezone:  r.Timezone,
-			GoVersion: r.GoVersion,
-			CRC32:     r.CRC32,
-			Version:   r.Version,
-			Creation:  r.Creation,
+			OS:            r.OS,
+			Arch:          r.Arch,
+			Cores:         r.Cores,
+			Timezone:      r.Timezone,
+			GoVersion:     r.GoVersion,
+			CRC32:         r.CRC32,
+			Version:       r.Version,
+			Creation:      r.Creation,
+			BuildMain:     r.BuildMain,
+			BuildRevision: r.BuildRevision,
+			BuildModified: r.BuildModified,
+			BuildSettings: r.BuildSettings,
+			BuildDeps:     r.BuildDeps,
+			BuildReplaces: r.BuildReplaces,
 		}
 		data, _ := json.Marshal(meta)
 		s.eventCounter++
