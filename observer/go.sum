@@ -1,4 +1,4 @@
-ergo.services/ergo v1.999.321-0.20260608081239-255d9d6c3d38 h1:V540wBE1OTvbpvJETetW/22VTBIdQD7fZU4Mcu+l5to=
-ergo.services/ergo v1.999.321-0.20260608081239-255d9d6c3d38/go.mod h1:2WcCdXUIZvCfy9Kkac3Sx6V/tB23Mx3yK6xz77hRfbM=
-ergo.services/meta/sse v0.2.0 h1:21y6hAngeQUDxgOSQXMFebGiFG3WGJN9tRo+wz+YSu8=
-ergo.services/meta/sse v0.2.0/go.mod h1:u/UBSIQIVkgf2wDLG0yxAdE6h4Kmy0MSVdpQgFqBJG8=
+ergo.services/ergo v1.999.321-0.20260608153021-75b4d2674eca h1:68u2xZRdqc5czcfmFnB6GM4QKuEd0j5HtNV2EMn2kpo=
+ergo.services/ergo v1.999.321-0.20260608153021-75b4d2674eca/go.mod h1:2WcCdXUIZvCfy9Kkac3Sx6V/tB23Mx3yK6xz77hRfbM=
+ergo.services/meta/sse v0.2.1-0.20260608154047-92abfb00e259 h1:MUvTAD4EECBgS/qkusJk61yKfzMM+JSkuTgi/gysEZA=
+ergo.services/meta/sse v0.2.1-0.20260608154047-92abfb00e259/go.mod h1:OuGllULXdjE+YvFBjqfT+aMVSnxzseypmK0O/VIRTp0=
