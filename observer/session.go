@@ -918,6 +918,58 @@ func (s *session) sendInitialData(subType string, result any) {
 			Data:  data,
 			MsgID: fmt.Sprintf("%d", s.eventCounter),
 		})
+
+	case "process_info":
+		r, ok := result.(inspect.ResponseInspectProcess)
+		if ok == false {
+			return
+		}
+		data, _ := json.Marshal(inspect.MessageInspectProcess{Node: s.node, Info: r.Info})
+		s.eventCounter++
+		s.SendAlias(s.sseAlias, sse.Message{
+			Event: "process_info",
+			Data:  data,
+			MsgID: fmt.Sprintf("%d", s.eventCounter),
+		})
+
+	case "meta_info":
+		r, ok := result.(inspect.ResponseInspectMeta)
+		if ok == false {
+			return
+		}
+		data, _ := json.Marshal(inspect.MessageInspectMeta{Node: s.node, Info: r.Info})
+		s.eventCounter++
+		s.SendAlias(s.sseAlias, sse.Message{
+			Event: "meta_info",
+			Data:  data,
+			MsgID: fmt.Sprintf("%d", s.eventCounter),
+		})
+
+	case "connection_info":
+		r, ok := result.(inspect.ResponseInspectConnection)
+		if ok == false {
+			return
+		}
+		data, _ := json.Marshal(inspect.MessageInspectConnection{Node: s.node, Disconnected: r.Disconnected, Info: r.Info})
+		s.eventCounter++
+		s.SendAlias(s.sseAlias, sse.Message{
+			Event: "connection_info",
+			Data:  data,
+			MsgID: fmt.Sprintf("%d", s.eventCounter),
+		})
+
+	case "event":
+		r, ok := result.(inspect.ResponseInspectEvent)
+		if ok == false {
+			return
+		}
+		data, _ := json.Marshal(inspect.MessageInspectEvent{Node: s.node, Info: r.Info, Entries: r.Buffer, Watching: r.Watching, WatchReason: r.WatchReason})
+		s.eventCounter++
+		s.SendAlias(s.sseAlias, sse.Message{
+			Event: "event",
+			Data:  data,
+			MsgID: fmt.Sprintf("%d", s.eventCounter),
+		})
 	}
 }
 
@@ -1080,6 +1132,28 @@ func (s *session) buildInspectRequest(subType string, args map[string]any) (any,
 		}
 		return req, nil
 
+	case "event":
+		req := inspect.RequestInspectEvent{Limit: 500}
+		if v, ok := args["name"].(string); ok {
+			req.Name = gen.Atom(v)
+		}
+		if v, ok := args["limit"].(float64); ok && v >= 1 {
+			req.Limit = int(v)
+		}
+		if v, ok := args["typePattern"].(string); ok {
+			req.TypePattern = v
+		}
+		if v, ok := args["messagePattern"].(string); ok {
+			req.MessagePattern = v
+		}
+		if v, ok := args["messageExclude"].(bool); ok {
+			req.MessageExclude = v
+		}
+		if v, ok := args["force"].(bool); ok {
+			req.Force = v
+		}
+		return req, nil
+
 	case "application_list":
 		return inspect.RequestInspectApplicationList{}, nil
 
@@ -1165,6 +1239,8 @@ func extractEvent(result any) (gen.Event, error) {
 		return r.Event, nil
 	case inspect.ResponseInspectEventList:
 		return r.Event, nil
+	case inspect.ResponseInspectEvent:
+		return r.Event, nil
 	case inspect.ResponseInspectConnectionList:
 		return r.Event, nil
 	case inspect.ResponseInspectApplicationList:
@@ -1217,6 +1293,8 @@ func inspectEventToSSEType(name gen.Atom) string {
 		return "connection_info"
 	case strings.HasPrefix(n, "inspect_event_list"):
 		return "event_list"
+	case strings.HasPrefix(n, "inspect_event"):
+		return "event"
 	case n == "inspect_application_list":
 		return "application_list"
 	case strings.HasPrefix(n, "inspect_log"):
@@ -1296,6 +1374,15 @@ func subLookupKey(subType string, args map[string]any) string {
 		minSubs, _ := args["minSubscribers"].(float64)
 		return fmt.Sprintf("%s:ts=%d:limit=%d:name=%s:notify=%s:buffered=%s:minsubs=%d",
 			subType, int(ts), int(limit), name, notifyMode, bufferedMode, int(minSubs))
+	case "event":
+		name, _ := args["name"].(string)
+		limit, _ := args["limit"].(float64)
+		typeP, _ := args["typePattern"].(string)
+		msgP, _ := args["messagePattern"].(string)
+		excl, _ := args["messageExclude"].(bool)
+		force, _ := args["force"].(bool)
+		return fmt.Sprintf("%s:name=%s:limit=%d:type=%s:msg=%s:excl=%v:force=%v",
+			subType, name, int(limit), typeP, msgP, excl, force)
 	case "heap":
 		limit, _ := args["limit"].(float64)
 		name, _ := args["name"].(string)
