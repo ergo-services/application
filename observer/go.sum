@@ -2,5 +2,7 @@ ergo.services/ergo v1.999.321-0.20260608202150-ed4e48600507 h1:ivVyaIcYbn4A5WgeO
 ergo.services/ergo v1.999.321-0.20260608202150-ed4e48600507/go.mod h1:2WcCdXUIZvCfy9Kkac3Sx6V/tB23Mx3yK6xz77hRfbM=
 ergo.services/ergo v1.999.321-0.20260610201740-e1133b83453f h1:EJhUAWmag4+1q1cSUEuL1VkqIEUS0uJ6ecJKLtCVSkE=
 ergo.services/ergo v1.999.321-0.20260610201740-e1133b83453f/go.mod h1:2WcCdXUIZvCfy9Kkac3Sx6V/tB23Mx3yK6xz77hRfbM=
+ergo.services/ergo v1.999.321-0.20260617080416-dd9c61eea257 h1:Gf6fGwZ4fVRJGq/Up/lUtP7UxFLxaCMHVeh2nKlEiAE=
+ergo.services/ergo v1.999.321-0.20260617080416-dd9c61eea257/go.mod h1:2WcCdXUIZvCfy9Kkac3Sx6V/tB23Mx3yK6xz77hRfbM=
 ergo.services/meta/sse v0.2.1-0.20260608202357-1b582f0fa937 h1:K5Y4nKITbCe6v6E9C2e881XqKV7T2N7CPtSqPSVXldE=
 ergo.services/meta/sse v0.2.1-0.20260608202357-1b582f0fa937/go.mod h1:hlqa4P3UutV77PCTD7DuJ+iGSkAqIt7N2BrfXEdQb4Y=
