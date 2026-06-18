@@ -1365,9 +1365,25 @@ func subLookupKey(subType string, args map[string]any) string {
 		if node, ok := args["node"].(string); ok {
 			return subType + ":node=" + node
 		}
-	case "event_info", "event_stream":
+	case "event_info":
 		if name, ok := args["name"].(string); ok {
 			return subType + ":name=" + name
+		}
+	case "event_stream":
+		// key by full scope (matches the inspector's hash) so a stale
+		// unsubscribe for one scope never removes a fresh subscription for another
+		if name, ok := args["name"].(string); ok {
+			limit := 500
+			if v, ok := args["limit"].(float64); ok && v >= 1 {
+				limit = int(v)
+			}
+			tp, _ := args["typePattern"].(string)
+			mp, _ := args["messagePattern"].(string)
+			mx, _ := args["messageExclude"].(bool)
+			force, _ := args["force"].(bool)
+			verbose, _ := args["verbose"].(bool)
+			return fmt.Sprintf("%s:name=%s|limit=%d|tp=%s|mp=%s|mx=%v|force=%v|verbose=%v",
+				subType, name, limit, tp, mp, mx, force, verbose)
 		}
 	case "meta_state":
 		alias, _ := args["alias"].(string)
