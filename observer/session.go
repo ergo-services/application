@@ -159,24 +159,24 @@ func (s *session) HandleEvent(message gen.MessageEvent) error {
 		return nil
 	}
 
+	s.forwardEventMessage(message)
+	return nil
+}
+
+func (s *session) forwardEventMessage(message gen.MessageEvent) {
 	data, err := json.Marshal(message.Message)
 	if err != nil {
-		s.Log().Error("session %s: marshal event %s: %s", s.id, key, err)
-		return nil
+		s.Log().Error("session %s: marshal event %s: %s", s.id, message.Event.String(), err)
+		return
 	}
-
-	eventType := inspectEventToSSEType(message.Event.Name)
 	s.eventCounter++
-
-	sseMsg := sse.Message{
-		Event: eventType,
+	if err := s.SendAlias(s.sseAlias, sse.Message{
+		Event: inspectEventToSSEType(message.Event.Name),
 		Data:  data,
 		MsgID: fmt.Sprintf("%d", s.eventCounter),
-	}
-	if err := s.SendAlias(s.sseAlias, sseMsg); err != nil {
+	}); err != nil {
 		s.Log().Error("session %s: SendAlias failed: %s", s.id, err)
 	}
-	return nil
 }
 
 func (s *session) Terminate(reason error) {
@@ -665,7 +665,7 @@ func (s *session) doSubscribe(subType string, args map[string]any) (any, error) 
 
 	// monitor the inspect event
 	monStart := time.Now()
-	_, monErr := s.MonitorEvent(event)
+	buf, monErr := s.MonitorEvent(event)
 	s.Log().Debug("session %s: monitor %s took %s", s.id, eventKey, time.Since(monStart))
 	if monErr != nil {
 		return apiResponse{Error: fmt.Sprintf("monitor: %s", monErr)}, nil
@@ -675,8 +675,13 @@ func (s *session) doSubscribe(subType string, args map[string]any) (any, error) 
 	s.subIndex[lookupKey] = eventKey
 	s.Log().Info("session %s: subscribed %s [%s] → %s (total subs: %d)", s.id, subType, lookupKey, eventKey, len(s.subscriptions))
 
-	// send initial data from inspect response for types that carry extra info
 	s.sendInitialData(subType, result)
+
+	if subType == "event_stream" {
+		for _, em := range buf {
+			s.forwardEventMessage(em)
+		}
+	}
 
 	return apiResponse{OK: true}, nil
 }
@@ -958,15 +963,28 @@ func (s *session) sendInitialData(subType string, result any) {
 			MsgID: fmt.Sprintf("%d", s.eventCounter),
 		})
 
-	case "event":
+	case "event_info":
 		r, ok := result.(inspect.ResponseInspectEvent)
 		if ok == false {
 			return
 		}
-		data, _ := json.Marshal(inspect.MessageInspectEvent{Node: s.node, Info: r.Info, Entries: r.Buffer, Watching: r.Watching, WatchReason: r.WatchReason})
+		data, _ := json.Marshal(inspect.MessageInspectEvent{Node: s.node, Info: r.Info})
 		s.eventCounter++
 		s.SendAlias(s.sseAlias, sse.Message{
-			Event: "event",
+			Event: "event_info",
+			Data:  data,
+			MsgID: fmt.Sprintf("%d", s.eventCounter),
+		})
+
+	case "event_stream":
+		r, ok := result.(inspect.ResponseInspectEventStream)
+		if ok == false {
+			return
+		}
+		data, _ := json.Marshal(inspect.MessageInspectEvent{Node: s.node, Info: gen.EventInfo{Event: r.Target}, Watching: r.Watching, WatchReason: r.WatchReason})
+		s.eventCounter++
+		s.SendAlias(s.sseAlias, sse.Message{
+			Event: "event_stream",
 			Data:  data,
 			MsgID: fmt.Sprintf("%d", s.eventCounter),
 		})
@@ -1132,8 +1150,15 @@ func (s *session) buildInspectRequest(subType string, args map[string]any) (any,
 		}
 		return req, nil
 
-	case "event":
-		req := inspect.RequestInspectEvent{Limit: 500}
+	case "event_info":
+		req := inspect.RequestInspectEvent{}
+		if v, ok := args["name"].(string); ok {
+			req.Name = gen.Atom(v)
+		}
+		return req, nil
+
+	case "event_stream":
+		req := inspect.RequestInspectEventStream{Limit: 500}
 		if v, ok := args["name"].(string); ok {
 			req.Name = gen.Atom(v)
 		}
@@ -1244,6 +1269,8 @@ func extractEvent(result any) (gen.Event, error) {
 		return r.Event, nil
 	case inspect.ResponseInspectEvent:
 		return r.Event, nil
+	case inspect.ResponseInspectEventStream:
+		return r.Event, nil
 	case inspect.ResponseInspectConnectionList:
 		return r.Event, nil
 	case inspect.ResponseInspectApplicationList:
@@ -1296,8 +1323,10 @@ func inspectEventToSSEType(name gen.Atom) string {
 		return "connection_info"
 	case strings.HasPrefix(n, "inspect_event_list"):
 		return "event_list"
+	case strings.HasPrefix(n, "inspect_event_stream"):
+		return "event_stream"
 	case strings.HasPrefix(n, "inspect_event"):
-		return "event"
+		return "event_info"
 	case n == "inspect_application_list":
 		return "application_list"
 	case strings.HasPrefix(n, "inspect_log"):
@@ -1341,6 +1370,10 @@ func subLookupKey(subType string, args map[string]any) string {
 	case "connection_info":
 		if node, ok := args["node"].(string); ok {
 			return subType + ":node=" + node
+		}
+	case "event_info", "event_stream":
+		if name, ok := args["name"].(string); ok {
+			return subType + ":name=" + name
 		}
 	case "meta_state":
 		alias, _ := args["alias"].(string)
