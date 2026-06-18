@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"ergo.services/ergo/act"
@@ -22,11 +23,28 @@ func factory_web() gen.ProcessBehavior {
 	return &web{}
 }
 
-// web spawns all meta processes (SSE handler, WebHandler, WebServer).
-// Does not handle messages. SSE connect/disconnect goes to mgr via ProcessPool.
+// web owns the HTTP frontend. The mux and the listener are built once and never
+// rebuilt; the metas behind /sse and /api/ are monitored and restarted on death,
+// swapped into stable slots so routing and the listener stay up. SSE
+// connect/disconnect goes to managerName via ProcessPool.
 type web struct {
 	act.Actor
+
+	host string
+	port uint16
+
+	mux      *http.ServeMux
+	sseSlot  *swapHandler
+	postSlot *swapHandler
+
+	sseAlias    gen.Alias
+	postAlias   gen.Alias
+	serverAlias gen.Alias
 }
+
+// messageRestartServer is a self-message scheduled to retry the listener rebind
+// when the previous web server meta has not released the port yet.
+type messageRestartServer struct{}
 
 func (w *web) Init(args ...any) error {
 	w.Log().SetLogger("default")
@@ -36,55 +54,169 @@ func (w *web) Init(args ...any) error {
 	if port < 1 {
 		return errors.New("port is not set")
 	}
+	w.port = port
 
-	host := "localhost"
+	w.host = "localhost"
 	if v, exist := w.Env("host"); exist {
 		if h, ok := v.(string); ok && h != "" {
-			host = h
+			w.host = h
 		}
 	}
 
-	mux := http.NewServeMux()
-
-	// SSE endpoint → all connect/disconnect go to mgrName
-	sseHandler := sse.CreateHandler(sse.HandlerOptions{
-		ProcessPool: []gen.Atom{mgrName},
-		Compression: true,
-	})
-	if _, err := w.SpawnMeta(sseHandler, gen.MetaOptions{}); err != nil {
-		return err
-	}
-	mux.Handle("/sse", sseHandler)
-
-	// POST /api/* → WebHandler → post pool
-	postHandler := meta.CreateWebHandler(meta.WebHandlerOptions{
-		Worker:         poolName,
-		RequestTimeout: 15 * time.Second,
-	})
-	if _, err := w.SpawnMeta(postHandler, gen.MetaOptions{}); err != nil {
-		return err
-	}
-	mux.Handle("/api/", postHandler)
+	// mux and the two stable slots are registered once. A restarted handler meta
+	// is swapped into its slot, so the mux is never re-registered.
+	w.mux = http.NewServeMux()
+	w.sseSlot = &swapHandler{}
+	w.postSlot = &swapHandler{}
+	w.mux.Handle("/sse", w.sseSlot)
+	w.mux.Handle("/api/", w.postSlot)
 
 	// static frontend assets with pre-compressed gzip support
 	fsroot, _ := fs.Sub(assets, "web")
-	mux.HandleFunc("/", gzipFileServer(fsroot))
+	w.mux.HandleFunc("/", gzipFileServer(fsroot))
 
-	// web server
-	webserver, err := meta.CreateWebServer(meta.WebServerOptions{
-		Port:    port,
-		Host:    host,
-		Handler: mux,
+	if err := w.startSSE(); err != nil {
+		return err
+	}
+	if err := w.startPost(); err != nil {
+		return err
+	}
+	if err := w.startServer(); err != nil {
+		return err
+	}
+
+	w.Log().Info("Observer listening on %s:%d", w.host, w.port)
+	return nil
+}
+
+func (w *web) HandleMessage(from gen.PID, message any) error {
+	switch msg := message.(type) {
+	case gen.MessageDownAlias:
+		w.restart(msg.Alias, msg.Reason)
+
+	case messageRestartServer:
+		w.restartServer()
+
+	default:
+		w.Log().Warning("unknown message from %s: %#v", from, message)
+	}
+	return nil
+}
+
+// restart re-spawns the meta whose alias just went down. A down for an alias we
+// have already replaced no longer matches and is ignored.
+func (w *web) restart(alias gen.Alias, reason error) {
+	switch alias {
+	case w.sseAlias:
+		w.Log().Warning("SSE handler meta %s died (%s), restarting", alias, reason)
+		if err := w.startSSE(); err != nil {
+			w.Log().Error("failed to restart SSE handler: %s", err)
+		}
+
+	case w.postAlias:
+		w.Log().Warning("API handler meta %s died (%s), restarting", alias, reason)
+		if err := w.startPost(); err != nil {
+			w.Log().Error("failed to restart API handler: %s", err)
+		}
+
+	case w.serverAlias:
+		w.Log().Warning("web server meta %s died (%s), restarting", alias, reason)
+		w.restartServer()
+	}
+}
+
+// startSSE spawns a fresh SSE handler meta, monitors it, and swaps it into the
+// /sse slot. The previous (dead) object is single-use and is dropped.
+func (w *web) startSSE() error {
+	handler := sse.CreateHandler(sse.HandlerOptions{
+		ProcessPool: []gen.Atom{managerName},
+		Compression: true,
+	})
+	alias, err := w.SpawnMeta(handler, gen.MetaOptions{})
+	if err != nil {
+		return err
+	}
+	if err := w.MonitorAlias(alias); err != nil {
+		return err
+	}
+	w.sseAlias = alias
+	w.sseSlot.set(handler)
+	return nil
+}
+
+// startPost spawns a fresh API handler meta, monitors it, and swaps it into the
+// /api/ slot.
+func (w *web) startPost() error {
+	handler := meta.CreateWebHandler(meta.WebHandlerOptions{
+		Worker:         poolName,
+		RequestTimeout: 15 * time.Second,
+	})
+	alias, err := w.SpawnMeta(handler, gen.MetaOptions{})
+	if err != nil {
+		return err
+	}
+	if err := w.MonitorAlias(alias); err != nil {
+		return err
+	}
+	w.postAlias = alias
+	w.postSlot.set(handler)
+	return nil
+}
+
+// startServer binds the listener and spawns a fresh web server meta serving the
+// stable mux. Returns an error if the port is still held by the previous server.
+func (w *web) startServer() error {
+	server, err := meta.CreateWebServer(meta.WebServerOptions{
+		Port:    w.port,
+		Host:    w.host,
+		Handler: w.mux,
 	})
 	if err != nil {
 		return err
 	}
-	if _, err := w.SpawnMeta(webserver, gen.MetaOptions{}); err != nil {
+	alias, err := w.SpawnMeta(server, gen.MetaOptions{})
+	if err != nil {
 		return err
 	}
-
-	w.Log().Info("Observer listening on %s:%d", host, port)
+	if err := w.MonitorAlias(alias); err != nil {
+		return err
+	}
+	w.serverAlias = alias
 	return nil
+}
+
+// restartServer rebinds the listener; if the previous server has not released
+// the port yet, it retries shortly via a self-message.
+func (w *web) restartServer() {
+	if err := w.startServer(); err != nil {
+		w.Log().Error("web server rebind failed, retrying: %s", err)
+		w.SendAfter(w.PID(), messageRestartServer{}, time.Second)
+	}
+}
+
+// swapHandler is the stable http.Handler registered in the mux for an endpoint
+// whose backing meta can be restarted. ServeHTTP runs on the web server
+// goroutine while the actor swaps the target from its callback, so the target is
+// held in an atomic.Value: a lock-free store that never blocks the actor.
+type swapHandler struct {
+	current atomic.Value // holds handlerBox
+}
+
+type handlerBox struct {
+	h http.Handler
+}
+
+func (s *swapHandler) set(h http.Handler) {
+	s.current.Store(handlerBox{h: h})
+}
+
+func (s *swapHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	box, ok := s.current.Load().(handlerBox)
+	if ok == false || box.h == nil {
+		http.Error(writer, "handler not ready", http.StatusServiceUnavailable)
+		return
+	}
+	box.h.ServeHTTP(writer, request)
 }
 
 // gzipFileServer serves pre-compressed .gz files when client supports gzip.

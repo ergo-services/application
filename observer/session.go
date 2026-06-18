@@ -1152,6 +1152,9 @@ func (s *session) buildInspectRequest(subType string, args map[string]any) (any,
 		if v, ok := args["force"].(bool); ok {
 			req.Force = v
 		}
+		if v, ok := args["verbose"].(bool); ok {
+			req.Verbose = v
+		}
 		return req, nil
 
 	case "application_list":

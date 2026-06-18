@@ -7,10 +7,11 @@ import (
 )
 
 const (
-	appName  gen.Atom = "observer_app"
-	mgrName  gen.Atom = "observer_mgr"
-	webName  gen.Atom = "observer_web"
-	poolName gen.Atom = "observer_post_pool"
+	appName     gen.Atom = "observer_app"
+	supName     gen.Atom = "observer_sup"
+	managerName gen.Atom = "observer_manager"
+	webName     gen.Atom = "observer_web"
+	poolName    gen.Atom = "observer_post_pool"
 )
 
 func CreateApp(options Options) gen.ApplicationBehavior {
@@ -33,6 +34,7 @@ func (a *observerApp) Load(args ...any) (gen.ApplicationSpec, error) {
 		Name:        appName,
 		Description: "Observer Application v2 (SSE)",
 		Version:     Version,
+		Mode:        gen.ApplicationModePermanent,
 		Env: map[gen.Env]any{
 			"port":      a.options.Port,
 			"host":      a.options.Host,
@@ -40,16 +42,8 @@ func (a *observerApp) Load(args ...any) (gen.ApplicationSpec, error) {
 		},
 		Group: []gen.ApplicationMemberSpec{
 			{
-				Name:    mgrName,
-				Factory: factory_mgr,
-			},
-			{
-				Name:    poolName,
-				Factory: factory_post_pool,
-			},
-			{
-				Name:    webName,
-				Factory: factory_web,
+				Name:    supName,
+				Factory: factory_sup,
 			},
 		},
 	}

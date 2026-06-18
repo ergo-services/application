@@ -9,23 +9,23 @@ import (
 	"ergo.services/meta/sse"
 )
 
-func factory_mgr() gen.ProcessBehavior {
-	return &mgr{}
+func factory_manager() gen.ProcessBehavior {
+	return &manager{}
 }
 
-// mgr receives SSE connect/disconnect and manages session actor lifecycle.
-// SSE handler has ProcessPool: [mgrName], so all SSE messages come here.
-type mgr struct {
+// manager receives SSE connect/disconnect and manages session actor lifecycle.
+// SSE handler has ProcessPool: [managerName], so all SSE messages come here.
+type manager struct {
 	act.Actor
 }
 
-func (m *mgr) Init(args ...any) error {
+func (m *manager) Init(args ...any) error {
 	m.Log().SetLogger("default")
 	m.Log().Info("session manager started")
 	return nil
 }
 
-func (m *mgr) HandleMessage(from gen.PID, message any) error {
+func (m *manager) HandleMessage(from gen.PID, message any) error {
 	switch msg := message.(type) {
 	case sse.MessageConnect:
 		m.handleConnect(msg)
@@ -44,7 +44,7 @@ func (m *mgr) HandleMessage(from gen.PID, message any) error {
 	return nil
 }
 
-func (m *mgr) handleConnect(msg sse.MessageConnect) {
+func (m *manager) handleConnect(msg sse.MessageConnect) {
 	sessionID := generateSessionID()
 	sessionName := gen.Atom("observer_session_" + sessionID)
 
@@ -60,7 +60,7 @@ func (m *mgr) handleConnect(msg sse.MessageConnect) {
 	}
 }
 
-func (m *mgr) Terminate(reason error) {
+func (m *manager) Terminate(reason error) {
 	m.Log().Info("session manager terminated: %s", reason)
 }
 
