@@ -665,7 +665,7 @@ func (s *session) doSubscribe(subType string, args map[string]any) (any, error) 
 
 	// monitor the inspect event
 	monStart := time.Now()
-	buf, monErr := s.MonitorEvent(event)
+	_, monErr := s.MonitorEvent(event)
 	s.Log().Debug("session %s: monitor %s took %s", s.id, eventKey, time.Since(monStart))
 	if monErr != nil {
 		return apiResponse{Error: fmt.Sprintf("monitor: %s", monErr)}, nil
@@ -676,12 +676,6 @@ func (s *session) doSubscribe(subType string, args map[string]any) (any, error) 
 	s.Log().Info("session %s: subscribed %s [%s] → %s (total subs: %d)", s.id, subType, lookupKey, eventKey, len(s.subscriptions))
 
 	s.sendInitialData(subType, result)
-
-	if subType == "event_stream" {
-		for _, em := range buf {
-			s.forwardEventMessage(em)
-		}
-	}
 
 	return apiResponse{OK: true}, nil
 }
@@ -981,7 +975,7 @@ func (s *session) sendInitialData(subType string, result any) {
 		if ok == false {
 			return
 		}
-		data, _ := json.Marshal(inspect.MessageInspectEvent{Node: s.node, Info: gen.EventInfo{Event: r.Target}, Watching: r.Watching, WatchReason: r.WatchReason})
+		data, _ := json.Marshal(inspect.MessageInspectEvent{Node: s.node, Info: gen.EventInfo{Event: r.Target}, Entries: r.Buffer, Watching: r.Watching, WatchReason: r.WatchReason})
 		s.eventCounter++
 		s.SendAlias(s.sseAlias, sse.Message{
 			Event: "event_stream",
