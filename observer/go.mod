@@ -3,6 +3,6 @@ module ergo.services/application/observer
 go 1.21
 
 require (
-	ergo.services/ergo v1.999.321-0.20260618210651-6628f4d1a8b5
+	ergo.services/ergo v1.999.321-0.20260622145223-b9e1cba762a5
 	ergo.services/meta/sse v0.2.1-0.20260608202357-1b582f0fa937
 )
