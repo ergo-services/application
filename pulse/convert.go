@@ -4,15 +4,18 @@
 // a separate OTLP Span. Aggregation is not possible because Sent may be emitted
 // on a different node than Delivered/Processed.
 //
-// OTLP SpanId is deterministic: ergoSpanID << 2 | uint64(Point).
-// This ensures uniqueness within a TraceID (each point gets a distinct SpanId)
-// and allows any node to compute the SpanId of any other point for the same message.
+// OTLP SpanId is deterministic: ergoSpanID << 2 | slot (Sent=1, Delivered=2,
+// Processed=3). This ensures uniqueness within a TraceID (each point gets a distinct
+// SpanId) and lets any node compute the SpanId of any other point for the same message.
 //
 // ParentSpanId mapping:
 //   - Sent: parent is Processed of parent message (ParentSpanID<<2|3),
 //     or root span if ParentSpanID == 0
 //   - Delivered: parent is Sent of same message (SpanID<<2|1)
 //   - Processed: parent is Sent of same message (SpanID<<2|1)
+//   - Span (business): occupies the Processed slot of its own ergo SpanID; parent is
+//     the enclosing anchor (another business span or the handler's Processed), root
+//     if ParentSpanID == 0. Sends made inside it nest under it as children.
 //
 // This produces a tree where Sent is the anchor for each message,
 // with Delivered and Processed as its children. Response spans nest
@@ -60,6 +63,7 @@
 //   Response.Processed  -> SERVER
 //   Spawn               -> INTERNAL
 //   Terminate           -> INTERNAL
+//   Span (business)     -> INTERNAL
 //
 //
 // Attributes: ergo.span_id, ergo.point, ergo.kind, ergo.from, ergo.to,
@@ -113,15 +117,21 @@ func convertSpan(s *gen.TracingSpan) *tracepb.Span {
 	binary.BigEndian.PutUint64(traceID[0:8], s.TraceID[0])
 	binary.BigEndian.PutUint64(traceID[8:16], s.TraceID[1])
 
-	// SpanId: deterministic from ergo SpanID + Point
-	// Sent=1, Delivered=2, Processed=3 encoded in lower 2 bits
+	// SpanId: deterministic from ergo SpanID + slot in the lower 2 bits (Sent=1,
+	// Delivered=2, Processed=3). A business span has a single observation and anchors
+	// its children like a Processed does, so it occupies the Processed slot; span and
+	// message ergo SpanIDs are disjoint, so they never collide.
+	slot := uint64(s.Point)
+	if s.Point == gen.TracingPointSpan {
+		slot = uint64(gen.TracingPointProcessed)
+	}
 	var spanID [8]byte
-	binary.BigEndian.PutUint64(spanID[:], s.SpanID<<2|uint64(s.Point))
+	binary.BigEndian.PutUint64(spanID[:], s.SpanID<<2|slot)
 
 	// ParentSpanId: Sent is the anchor for each message.
 	// Delivered and Processed are children of Sent (SpanID<<2|1).
 	// Sent's parent is the Processed point of the parent message (ParentSpanID<<2|3).
-	// Terminate has only Processed (no Sent) — uses parent context directly.
+	// Terminate has only Processed (no Sent) - uses parent context directly.
 	var parentSpanID []byte
 	switch s.Point {
 	case gen.TracingPointSent:
@@ -149,21 +159,43 @@ func convertSpan(s *gen.TracingSpan) *tracepb.Span {
 			binary.BigEndian.PutUint64(p[:], s.SpanID<<2|uint64(gen.TracingPointSent))
 			parentSpanID = p[:]
 		}
+	case gen.TracingPointSpan:
+		// business span: parent is the enclosing anchor - another business span or
+		// the handler's Processed, both in the Processed slot
+		if s.ParentSpanID != 0 {
+			var p [8]byte
+			binary.BigEndian.PutUint64(p[:], s.ParentSpanID<<2|uint64(gen.TracingPointProcessed))
+			parentSpanID = p[:]
+		}
 	}
 
-	// Name: "behavior kind.point message_type"
-	name := fmt.Sprintf("%s.%s", s.Kind, s.Point)
-	if s.Behavior != "" {
-		name = s.Behavior + " " + name
-	}
-	if s.Message != "" {
-		name = name + " " + s.Message
+	// Name: business spans use the operation message; others "behavior kind.point message"
+	var name string
+	if s.Point == gen.TracingPointSpan {
+		name = s.Message
+		if s.Behavior != "" {
+			name = s.Behavior + " " + s.Message
+		}
+	} else {
+		name = fmt.Sprintf("%s.%s", s.Kind, s.Point)
+		if s.Behavior != "" {
+			name = s.Behavior + " " + name
+		}
+		if s.Message != "" {
+			name = name + " " + s.Message
+		}
 	}
 
 	// Flags: set IS_REMOTE when span observed on different node than sender
 	var flags uint32
 	if s.From.Node != s.Node {
 		flags = 0x00000300 // HAS_IS_REMOTE | IS_REMOTE
+	}
+
+	// business spans carry an interval; point observations are instantaneous
+	end := s.Timestamp
+	if s.EndTimestamp > 0 {
+		end = s.EndTimestamp
 	}
 
 	span := &tracepb.Span{
@@ -173,7 +205,7 @@ func convertSpan(s *gen.TracingSpan) *tracepb.Span {
 		Name:              name,
 		Kind:              mapSpanKind(s.Kind, s.Point),
 		StartTimeUnixNano: uint64(s.Timestamp),
-		EndTimeUnixNano:   uint64(s.Timestamp),
+		EndTimeUnixNano:   uint64(end),
 		Attributes:        buildAttributes(s),
 		Flags:             flags,
 	}
@@ -190,6 +222,9 @@ func convertSpan(s *gen.TracingSpan) *tracepb.Span {
 }
 
 func mapSpanKind(k gen.TracingKind, p gen.TracingPoint) tracepb.Span_SpanKind {
+	if p == gen.TracingPointSpan {
+		return tracepb.Span_SPAN_KIND_INTERNAL
+	}
 	switch k {
 	case gen.TracingKindSend:
 		if p == gen.TracingPointSent {
