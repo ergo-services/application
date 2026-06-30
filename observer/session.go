@@ -183,6 +183,28 @@ func (s *session) Terminate(reason error) {
 	s.Log().Info("session %s terminated: %s", s.id, reason)
 }
 
+// HandleInspect exposes the session state: which node the browser is observing,
+// the SSE connection, how many inspect subscriptions are active (and what they
+// watch), and how many SSE messages have been pushed to the browser.
+func (s *session) HandleInspect(from gen.PID, item ...string) map[string]string {
+	info := map[string]string{
+		"id":             s.id,
+		"observing_node": string(s.node),
+		"sse":            s.sseAlias.String(),
+		"subscriptions":  fmt.Sprintf("%d", len(s.subscriptions)),
+		"messages_sent":  fmt.Sprintf("%d", s.eventCounter),
+	}
+	if len(s.subIndex) > 0 {
+		keys := make([]string, 0, len(s.subIndex))
+		for k := range s.subIndex {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		info["watching"] = strings.Join(keys, ", ")
+	}
+	return info
+}
+
 // handleCommand processes subscribe/unsubscribe/switch
 func (s *session) handleCommand(cmd commandRequest) (any, error) {
 	switch cmd.Command {
@@ -203,6 +225,17 @@ func (s *session) handleCommand(cmd commandRequest) (any, error) {
 
 // handleAction processes do/* commands by forwarding to system_inspect on the observed node
 func (s *session) handleAction(req actionRequest) (any, error) {
+	// self-inspect cannot round-trip through system_inspect: the session would block
+	// here in CallWithTimeout while system_inspect tries to inspect it, and a process
+	// blocked in a Call does not serve its own HandleInspect - deadlock. Answer locally.
+	if req.Action == "inspect" {
+		if pidStr, _ := req.Args["pid"].(string); pidStr != "" {
+			if p, err := str2pid(s.node, s.creation, pidStr); err == nil && p == s.PID() {
+				return apiResponse{OK: true, Data: s.HandleInspect(s.PID())}, nil
+			}
+		}
+	}
+
 	inspectReq, err := s.buildActionRequest(req.Action, req.Args)
 	if err != nil {
 		return apiResponse{Error: err.Error()}, nil
@@ -222,6 +255,9 @@ func (s *session) handleAction(req actionRequest) (any, error) {
 	}
 	// some actions return data
 	if r, ok := result.(inspect.ResponseDoInspect); ok {
+		return apiResponse{OK: true, Data: r.State}, nil
+	}
+	if r, ok := result.(inspect.ResponseDoInspectMeta); ok {
 		return apiResponse{OK: true, Data: r.State}, nil
 	}
 	if r, ok := result.(inspect.ResponseDoGoroutines); ok {
@@ -1075,6 +1111,20 @@ func (s *session) buildInspectRequest(subType string, args map[string]any) (any,
 			return nil, fmt.Errorf("invalid alias %q: %s", alias, err)
 		}
 		return inspect.RequestInspectMetaState{Meta: a}, nil
+
+	case "meta_inspect":
+		alias, _ := args["alias"].(string)
+		if alias == "" {
+			alias, _ = args["id"].(string)
+		}
+		if alias == "" {
+			return nil, fmt.Errorf("alias is required")
+		}
+		a, err := str2alias(s.node, s.creation, alias)
+		if err != nil {
+			return nil, fmt.Errorf("invalid alias %q: %s", alias, err)
+		}
+		return inspect.RequestDoInspectMeta{Meta: a}, nil
 
 	case "connection_info":
 		node, _ := args["node"].(string)
