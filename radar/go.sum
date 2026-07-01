@@ -8,6 +8,8 @@ ergo.services/ergo v1.999.321-0.20260629151358-d2841b9c2f00 h1:h3YLEt1+nUDhCnAWY
 ergo.services/ergo v1.999.321-0.20260629151358-d2841b9c2f00/go.mod h1:2WcCdXUIZvCfy9Kkac3Sx6V/tB23Mx3yK6xz77hRfbM=
 ergo.services/ergo v1.999.321-0.20260630152508-d742c972cebe h1:98GmWO3sEgwIpjBINbHfgliVa0fMMHvb2b/Kg6M3RkQ=
 ergo.services/ergo v1.999.321-0.20260630152508-d742c972cebe/go.mod h1:2WcCdXUIZvCfy9Kkac3Sx6V/tB23Mx3yK6xz77hRfbM=
+ergo.services/ergo v1.999.321-0.20260701095342-f7a01433d464 h1:zVV99rZoQzEZin6gChyMbIB5bYCt8PNbfOTucryO+Wg=
+ergo.services/ergo v1.999.321-0.20260701095342-f7a01433d464/go.mod h1:2WcCdXUIZvCfy9Kkac3Sx6V/tB23Mx3yK6xz77hRfbM=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
