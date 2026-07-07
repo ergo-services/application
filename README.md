@@ -28,3 +28,9 @@ Doc: https://docs.ergo.services/extra-library/applications/radar
 OTLP tracing exporter application. Collects tracing observations from the node and exports them to any OTLP-compatible backend (Grafana Tempo, Jaeger) over HTTP with protobuf encoding. Uses a pool of worker actors for batching and flushing.
 
 Doc: https://docs.ergo.services/extra-library/applications/pulse
+
+## grid
+
+Eventually-consistent distributed registry, process groups, and lifecycle monitors for nodes made with Ergo Framework. Each node keeps a full local copy of a sharded registry; keys and monitors replicate across same-domain peers, and process groups broadcast over the event bus.
+
+Doc: https://docs.ergo.services/extra-library/applications/grid
