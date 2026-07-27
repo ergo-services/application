@@ -440,6 +440,13 @@ func (s *session) buildActionRequest(action string, args map[string]any) (any, e
 		}
 		return inspect.RequestDoInspect{PID: p}, nil
 
+	case "meta_inspect":
+		a, err := s.requireAlias(args)
+		if err != nil {
+			return nil, err
+		}
+		return inspect.RequestDoInspectMeta{Meta: a}, nil
+
 	// process settings
 
 	case "set_process_send_priority":
@@ -1111,20 +1118,6 @@ func (s *session) buildInspectRequest(subType string, args map[string]any) (any,
 			return nil, fmt.Errorf("invalid alias %q: %s", alias, err)
 		}
 		return inspect.RequestInspectMetaState{Meta: a}, nil
-
-	case "meta_inspect":
-		alias, _ := args["alias"].(string)
-		if alias == "" {
-			alias, _ = args["id"].(string)
-		}
-		if alias == "" {
-			return nil, fmt.Errorf("alias is required")
-		}
-		a, err := str2alias(s.node, s.creation, alias)
-		if err != nil {
-			return nil, fmt.Errorf("invalid alias %q: %s", alias, err)
-		}
-		return inspect.RequestDoInspectMeta{Meta: a}, nil
 
 	case "connection_info":
 		node, _ := args["node"].(string)
