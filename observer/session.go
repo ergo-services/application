@@ -2,7 +2,6 @@ package observer
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -231,7 +230,7 @@ func (s *session) handleAction(req actionRequest) (any, error) {
 	if req.Action == "inspect" {
 		if pidStr, _ := req.Args["pid"].(string); pidStr != "" {
 			if p, err := str2pid(s.node, s.creation, pidStr); err == nil && p == s.PID() {
-				return apiResponse{OK: true, Data: s.HandleInspect(s.PID())}, nil
+				return apiResponse{OK: true, Data: s.HandleInspect(s.PID(), argStrings(req.Args, "items")...)}, nil
 			}
 		}
 	}
@@ -322,10 +321,8 @@ func (s *session) buildActionRequest(action string, args map[string]any) (any, e
 		}, nil
 
 	case "send_exit":
-		reason, _ := args["reason"].(string)
-		if reason == "" {
-			reason = "normal"
-		}
+		rs, _ := args["reason"].(string)
+		reason := exitReason(rs)
 		// meta process
 		if aliasStr, ok := args["alias"].(string); ok && aliasStr != "" {
 			a, err := str2alias(s.node, s.creation, aliasStr)
@@ -334,7 +331,7 @@ func (s *session) buildActionRequest(action string, args map[string]any) (any, e
 			}
 			return inspect.RequestDoSendExitMeta{
 				Meta:   a,
-				Reason: errors.New(reason),
+				Reason: reason,
 			}, nil
 		}
 		// regular process
@@ -348,7 +345,7 @@ func (s *session) buildActionRequest(action string, args map[string]any) (any, e
 		}
 		return inspect.RequestDoSendExit{
 			PID:    p,
-			Reason: errors.New(reason),
+			Reason: reason,
 		}, nil
 
 	case "kill":
@@ -438,7 +435,14 @@ func (s *session) buildActionRequest(action string, args map[string]any) (any, e
 		if err != nil {
 			return nil, fmt.Errorf("invalid pid: %s", err)
 		}
-		return inspect.RequestDoInspect{PID: p}, nil
+		return inspect.RequestDoInspect{PID: p, Items: argStrings(args, "items")}, nil
+
+	case "meta_inspect":
+		a, err := s.requireAlias(args)
+		if err != nil {
+			return nil, err
+		}
+		return inspect.RequestDoInspectMeta{Meta: a, Items: argStrings(args, "items")}, nil
 
 	// process settings
 
@@ -579,6 +583,21 @@ func (s *session) requireAlias(args map[string]any) (gen.Alias, error) {
 		return gen.Alias{}, fmt.Errorf("alias is required")
 	}
 	return str2alias(s.node, s.creation, aliasStr)
+}
+
+// argStrings extracts a string slice from a JSON array arg (elements arrive as []any).
+func argStrings(args map[string]any, key string) []string {
+	v, ok := args[key].([]any)
+	if ok == false {
+		return nil
+	}
+	out := make([]string, 0, len(v))
+	for _, e := range v {
+		if str, ok := e.(string); ok {
+			out = append(out, str)
+		}
+	}
+	return out
 }
 
 func parsePriority(s string) gen.MessagePriority {
@@ -1073,17 +1092,6 @@ func (s *session) buildInspectRequest(subType string, args map[string]any) (any,
 		}
 		return inspect.RequestInspectProcess{PID: p}, nil
 
-	case "process_state":
-		pid, _ := args["pid"].(string)
-		if pid == "" {
-			return nil, fmt.Errorf("pid is required")
-		}
-		p, err := str2pid(s.node, s.creation, pid)
-		if err != nil {
-			return nil, fmt.Errorf("invalid pid %q: %s", pid, err)
-		}
-		return inspect.RequestInspectProcessState{PID: p}, nil
-
 	case "meta_info":
 		alias, _ := args["alias"].(string)
 		if alias == "" {
@@ -1097,34 +1105,6 @@ func (s *session) buildInspectRequest(subType string, args map[string]any) (any,
 			return nil, fmt.Errorf("invalid alias %q: %s", alias, err)
 		}
 		return inspect.RequestInspectMeta{Meta: a}, nil
-
-	case "meta_state":
-		alias, _ := args["alias"].(string)
-		if alias == "" {
-			alias, _ = args["id"].(string)
-		}
-		if alias == "" {
-			return nil, fmt.Errorf("alias is required")
-		}
-		a, err := str2alias(s.node, s.creation, alias)
-		if err != nil {
-			return nil, fmt.Errorf("invalid alias %q: %s", alias, err)
-		}
-		return inspect.RequestInspectMetaState{Meta: a}, nil
-
-	case "meta_inspect":
-		alias, _ := args["alias"].(string)
-		if alias == "" {
-			alias, _ = args["id"].(string)
-		}
-		if alias == "" {
-			return nil, fmt.Errorf("alias is required")
-		}
-		a, err := str2alias(s.node, s.creation, alias)
-		if err != nil {
-			return nil, fmt.Errorf("invalid alias %q: %s", alias, err)
-		}
-		return inspect.RequestDoInspectMeta{Meta: a}, nil
 
 	case "connection_info":
 		node, _ := args["node"].(string)
@@ -1327,10 +1307,6 @@ func extractEvent(result any) (gen.Event, error) {
 		return r.Event, nil
 	case inspect.ResponseInspectConnection:
 		return r.Event, nil
-	case inspect.ResponseInspectProcessState:
-		return r.Event, nil
-	case inspect.ResponseInspectMetaState:
-		return r.Event, nil
 	case inspect.ResponseInspectHeap:
 		return r.Event, nil
 	case inspect.ResponseInspectTracing:
@@ -1351,12 +1327,8 @@ func inspectEventToSSEType(name gen.Atom) string {
 		return "process_list"
 	case strings.HasPrefix(n, "inspect_process_range"):
 		return "process_list"
-	case strings.HasPrefix(n, "inspect_process_state"):
-		return "process_state"
 	case strings.HasPrefix(n, "inspect_process"):
 		return "process_info"
-	case strings.HasPrefix(n, "inspect_meta_state"):
-		return "meta_state"
 	case strings.HasPrefix(n, "inspect_meta"):
 		return "meta_info"
 	case n == "inspect_network":
@@ -1399,10 +1371,6 @@ func subLookupKey(subType string, args map[string]any) string {
 		if pid, ok := args["pid"].(string); ok {
 			return subType + ":pid=" + pid
 		}
-	case "process_state":
-		if pid, ok := args["pid"].(string); ok {
-			return subType + ":pid=" + pid
-		}
 	case "meta_info":
 		alias, _ := args["alias"].(string)
 		if alias == "" {
@@ -1434,14 +1402,6 @@ func subLookupKey(subType string, args map[string]any) string {
 			verbose, _ := args["verbose"].(bool)
 			return fmt.Sprintf("%s:name=%s|limit=%d|tp=%s|mp=%s|mx=%v|force=%v|verbose=%v",
 				subType, name, limit, tp, mp, mx, force, verbose)
-		}
-	case "meta_state":
-		alias, _ := args["alias"].(string)
-		if alias == "" {
-			alias, _ = args["id"].(string)
-		}
-		if alias != "" {
-			return subType + ":alias=" + alias
 		}
 	case "process_list":
 		start, _ := args["pidStart"].(float64)

@@ -6,5 +6,15 @@ ergo.services/ergo v1.999.321-0.20260630152508-d742c972cebe h1:98GmWO3sEgwIpjBIN
 ergo.services/ergo v1.999.321-0.20260630152508-d742c972cebe/go.mod h1:2WcCdXUIZvCfy9Kkac3Sx6V/tB23Mx3yK6xz77hRfbM=
 ergo.services/ergo v1.999.321-0.20260701095342-f7a01433d464 h1:zVV99rZoQzEZin6gChyMbIB5bYCt8PNbfOTucryO+Wg=
 ergo.services/ergo v1.999.321-0.20260701095342-f7a01433d464/go.mod h1:2WcCdXUIZvCfy9Kkac3Sx6V/tB23Mx3yK6xz77hRfbM=
+ergo.services/ergo v1.999.321-0.20260801173805-ff84b000c1e8 h1:xRAMzSWQ0ifdDcyULsaUgeOZbw6kEaifuIfYlfXAb9o=
+ergo.services/ergo v1.999.321-0.20260801173805-ff84b000c1e8/go.mod h1:2WcCdXUIZvCfy9Kkac3Sx6V/tB23Mx3yK6xz77hRfbM=
+ergo.services/ergo v1.999.321-0.20260802113823-64e635061634 h1:nabG4BuMxC0uniubH3QksSLyTYu3E2hnlFw+X/zifhw=
+ergo.services/ergo v1.999.321-0.20260802113823-64e635061634/go.mod h1:2WcCdXUIZvCfy9Kkac3Sx6V/tB23Mx3yK6xz77hRfbM=
+ergo.services/ergo v1.999.321-0.20260802120611-c39a3a48ade1 h1:I4j35UH1LRltrYnr3Cj/9QVkLqdptm5imwA6RhXjAHs=
+ergo.services/ergo v1.999.321-0.20260802120611-c39a3a48ade1/go.mod h1:2WcCdXUIZvCfy9Kkac3Sx6V/tB23Mx3yK6xz77hRfbM=
+ergo.services/ergo v1.999.321-0.20260802125151-c46964d2cb77 h1:UnN3Mq2i9MKPRunesqL5EikFEGYkI7IuEvZvG0d1YEU=
+ergo.services/ergo v1.999.321-0.20260802125151-c46964d2cb77/go.mod h1:2WcCdXUIZvCfy9Kkac3Sx6V/tB23Mx3yK6xz77hRfbM=
 ergo.services/meta/sse v0.2.1-0.20260608202357-1b582f0fa937 h1:K5Y4nKITbCe6v6E9C2e881XqKV7T2N7CPtSqPSVXldE=
 ergo.services/meta/sse v0.2.1-0.20260608202357-1b582f0fa937/go.mod h1:hlqa4P3UutV77PCTD7DuJ+iGSkAqIt7N2BrfXEdQb4Y=
+ergo.services/meta/sse v0.2.1-0.20260801194657-930169ecd6d3 h1:x4K7TKeDwtw6A3ieYAiRUc7t0/7SySVnuKi+YYMrqKI=
+ergo.services/meta/sse v0.2.1-0.20260801194657-930169ecd6d3/go.mod h1:s/LMxTFghompKrN+FuPZRRkUpdPRA6Piios46CMfFPY=
