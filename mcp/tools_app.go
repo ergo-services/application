@@ -181,11 +181,18 @@ func toolAppProcesses(w gen.Process, params json.RawMessage) (any, error) {
 		p.Limit = 100
 	}
 
-	processes, err := w.Node().ApplicationProcessListShortInfo(gen.Atom(p.Name), p.Limit)
+	processes, omitted, err := w.Node().ApplicationProcessListShortInfo(gen.Atom(p.Name), p.Limit)
 	if err != nil {
 		return nil, fmt.Errorf("app_processes: %w", err)
 	}
-	text, err := marshalResult(processes)
+	result := any(processes)
+	if omitted > 0 {
+		result = struct {
+			Processes []gen.ProcessShortInfo `json:"processes"`
+			Omitted   int                    `json:"omitted"`
+		}{processes, omitted}
+	}
+	text, err := marshalResult(result)
 	if err != nil {
 		return nil, err
 	}
