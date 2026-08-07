@@ -1,7 +1,15 @@
 ergo.services/actor/health v0.0.0-20260608202329-984abf8da195 h1:BR0bhi3RlOwM/Lqdf5cDKydE2HMoB5yMcztRAF2idCA=
 ergo.services/actor/health v0.0.0-20260608202329-984abf8da195/go.mod h1:HsG4lIJpCqHvrjeJDPDxHftQhsX6lplkYXA1TON6+LM=
+ergo.services/actor/health v0.0.0-20260807130924-e18486612380 h1:kCVx8XilkN9M9r2sMTroareIsl3yl3wDkxYDj9EkgBo=
+ergo.services/actor/health v0.0.0-20260807130924-e18486612380/go.mod h1:nH+6OwENONTGMxoR6OBoYe22J+v6jo02B2e4jpm8Huw=
+ergo.services/actor/health v0.0.0-20260807131927-95b2e1ebf6fe h1:ZBLVCGhgNxS2GbrEzcB2nnBqQopIcGAdacDE8A1MWSI=
+ergo.services/actor/health v0.0.0-20260807131927-95b2e1ebf6fe/go.mod h1:nH+6OwENONTGMxoR6OBoYe22J+v6jo02B2e4jpm8Huw=
 ergo.services/actor/metrics v0.2.2-0.20260608202329-984abf8da195 h1:kgRj4vu+mRT/G+Q0J6JA/23bE3+ntr2LaNwAEBng1AU=
 ergo.services/actor/metrics v0.2.2-0.20260608202329-984abf8da195/go.mod h1:enb7ky02tJiLhU8FU2BJTd6Ca+3hMj4UWrrDSxwpXXs=
+ergo.services/actor/metrics v0.2.2-0.20260807130924-e18486612380 h1:TSPT35IVaSyylQw8YcqdRUk6knKnXUL8rHcGzBhk2MU=
+ergo.services/actor/metrics v0.2.2-0.20260807130924-e18486612380/go.mod h1:lm0+Bi0hsHtrUTKPLfrJy+9il+tRBLw0s2MdbKE3Mps=
+ergo.services/actor/metrics v0.2.2-0.20260807131927-95b2e1ebf6fe h1:cbcF4scbluzLeDZqlsiB1ujCwZk++g2w/LeER3IOwAI=
+ergo.services/actor/metrics v0.2.2-0.20260807131927-95b2e1ebf6fe/go.mod h1:lm0+Bi0hsHtrUTKPLfrJy+9il+tRBLw0s2MdbKE3Mps=
 ergo.services/ergo v1.999.321-0.20260629074914-66b4318bd814 h1:2gskrbTpiOS+pZe89wScV6NP6diUzjYnDhXyNFSH93M=
 ergo.services/ergo v1.999.321-0.20260629074914-66b4318bd814/go.mod h1:2WcCdXUIZvCfy9Kkac3Sx6V/tB23Mx3yK6xz77hRfbM=
 ergo.services/ergo v1.999.321-0.20260629151358-d2841b9c2f00 h1:h3YLEt1+nUDhCnAWY+G9RgsWiOPxquYKS6i0DrOE3JY=

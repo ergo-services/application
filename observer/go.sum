@@ -18,3 +18,5 @@ ergo.services/meta/sse v0.2.1-0.20260608202357-1b582f0fa937 h1:K5Y4nKITbCe6v6E9C
 ergo.services/meta/sse v0.2.1-0.20260608202357-1b582f0fa937/go.mod h1:hlqa4P3UutV77PCTD7DuJ+iGSkAqIt7N2BrfXEdQb4Y=
 ergo.services/meta/sse v0.2.1-0.20260801194657-930169ecd6d3 h1:x4K7TKeDwtw6A3ieYAiRUc7t0/7SySVnuKi+YYMrqKI=
 ergo.services/meta/sse v0.2.1-0.20260801194657-930169ecd6d3/go.mod h1:s/LMxTFghompKrN+FuPZRRkUpdPRA6Piios46CMfFPY=
+ergo.services/meta/sse v0.2.1-0.20260807132248-3e4748b06924 h1:tENdZTlsvwT/PHPcrXY3z2Ix+cx0U8OcIDWf+VaKf4k=
+ergo.services/meta/sse v0.2.1-0.20260807132248-3e4748b06924/go.mod h1:bFEH9A/lqzbAYas8drrgPIq92uHadKnH8TqtPB51CQY=
