@@ -2,7 +2,6 @@ package observer
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -322,10 +321,8 @@ func (s *session) buildActionRequest(action string, args map[string]any) (any, e
 		}, nil
 
 	case "send_exit":
-		reason, _ := args["reason"].(string)
-		if reason == "" {
-			reason = "normal"
-		}
+		rs, _ := args["reason"].(string)
+		reason := exitReason(rs)
 		// meta process
 		if aliasStr, ok := args["alias"].(string); ok && aliasStr != "" {
 			a, err := str2alias(s.node, s.creation, aliasStr)
@@ -334,7 +331,7 @@ func (s *session) buildActionRequest(action string, args map[string]any) (any, e
 			}
 			return inspect.RequestDoSendExitMeta{
 				Meta:   a,
-				Reason: errors.New(reason),
+				Reason: reason,
 			}, nil
 		}
 		// regular process
@@ -348,7 +345,7 @@ func (s *session) buildActionRequest(action string, args map[string]any) (any, e
 		}
 		return inspect.RequestDoSendExit{
 			PID:    p,
-			Reason: errors.New(reason),
+			Reason: reason,
 		}, nil
 
 	case "kill":

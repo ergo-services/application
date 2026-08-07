@@ -8,6 +8,23 @@ import (
 	"ergo.services/ergo/gen"
 )
 
+// exitReason maps a reason string back to the framework sentinel. A fresh
+// errors.New with the same text is not equal to the sentinel, and a supervisor
+// reads anything but Normal or Shutdown as an abnormal exit worth restarting.
+func exitReason(s string) error {
+	switch s {
+	case "", "normal":
+		return gen.TerminateReasonNormal
+	case "shutdown":
+		return gen.TerminateReasonShutdown
+	case "kill":
+		return gen.TerminateReasonKill
+	case "panic":
+		return gen.TerminateReasonPanic
+	}
+	return errors.New(s)
+}
+
 func str2pid(node gen.Atom, creation int64, s string) (gen.PID, error) {
 	pid := gen.PID{
 		Node:     node,
@@ -17,7 +34,6 @@ func str2pid(node gen.Atom, creation int64, s string) (gen.PID, error) {
 	if len(parts) != 3 {
 		return pid, errors.New("incorrect string for gen.PID value")
 	}
-
 	id1, err := strconv.ParseInt(parts[1], 10, 64)
 	if err != nil {
 		return pid, err
