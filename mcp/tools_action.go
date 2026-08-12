@@ -180,8 +180,12 @@ func toolMessageTypeInfo(w gen.Process, params json.RawMessage) (any, error) {
 		return nil, fmt.Errorf("invalid params: %w", err)
 	}
 
-	t, ok := w.Node().Network().LookupType(p.TypeName)
-	if ok == false {
+	t, candidates := resolveTypeName(w.Node().Network(), p.TypeName)
+	if t == nil {
+		if len(candidates) > 0 {
+			return nil, fmt.Errorf("%s is ambiguous, name one of: %s",
+				p.TypeName, strings.Join(candidates, ", "))
+		}
 		return nil, fmt.Errorf("type not found: %s. Use message_types to list registered types", p.TypeName)
 	}
 
@@ -292,8 +296,12 @@ func buildMessage(network gen.Network, typeName string, data json.RawMessage) (a
 	}
 
 	if typeName != "" {
-		t, ok := network.LookupType(typeName)
-		if ok == false {
+		t, candidates := resolveTypeName(network, typeName)
+		if t == nil {
+			if len(candidates) > 0 {
+				return nil, fmt.Errorf("%s is ambiguous, name one of: %s",
+					typeName, strings.Join(candidates, ", "))
+			}
 			return nil, fmt.Errorf("type not found: %s. Use message_types to list registered types", typeName)
 		}
 		msg, err := constructMessage(t, data)

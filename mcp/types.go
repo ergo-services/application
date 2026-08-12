@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -25,6 +26,29 @@ func listRegisteredTypes(network gen.Network) []string {
 		names = append(names, t.Name)
 	}
 	return names
+}
+
+// resolveTypeName resolves a canonical EDF name, or a short name when exactly one
+// registered type carries it. Several candidates are returned instead of one being picked:
+// two packages can hold the same type name, and guessing sends the wrong message.
+func resolveTypeName(network gen.Network, name string) (reflect.Type, []string) {
+	if t, ok := network.LookupType(name); ok {
+		return t, nil
+	}
+
+	suffix := "/" + name
+	var candidates []string
+	for _, info := range network.RegisteredTypes() {
+		if strings.HasSuffix(info.Name, suffix) {
+			candidates = append(candidates, info.Name)
+		}
+	}
+	if len(candidates) == 1 {
+		t, _ := network.LookupType(candidates[0])
+		return t, nil
+	}
+	sort.Strings(candidates)
+	return nil, candidates
 }
 
 // describeType returns field info for a struct type
