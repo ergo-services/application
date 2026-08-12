@@ -3,6 +3,7 @@ package radar
 import (
 	"net/http"
 
+	"ergo.services/actor/health"
 	"ergo.services/actor/metrics"
 	"ergo.services/ergo/app"
 	"ergo.services/ergo/gen"
@@ -48,6 +49,12 @@ func (a *radarApp) Load(args ...any) (gen.ApplicationSpec, error) {
 		Name:        Name,
 		Description: "Prometheus metrics exporter and health check endpoints",
 		Env:         env,
+		// Both actors refuse to start without their wire types on the node, and
+		// ApplicationLoad runs before any of this application's processes spawn.
+		Network: gen.ApplicationNetwork{
+			RegisterTypes:  append(health.NetworkTypes(), metrics.NetworkTypes()...),
+			RegisterErrors: append(health.ErrorTypes(), metrics.ErrorTypes()...),
+		},
 		Group: []gen.ApplicationMemberSpec{
 			{
 				Name:    nameSup,
