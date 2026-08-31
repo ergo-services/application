@@ -8,6 +8,10 @@ ergo.services/ergo v1.999.321-0.20260701095342-f7a01433d464 h1:zVV99rZoQzEZin6gC
 ergo.services/ergo v1.999.321-0.20260701095342-f7a01433d464/go.mod h1:2WcCdXUIZvCfy9Kkac3Sx6V/tB23Mx3yK6xz77hRfbM=
 ergo.services/ergo v1.999.321-0.20260802125151-c46964d2cb77 h1:UnN3Mq2i9MKPRunesqL5EikFEGYkI7IuEvZvG0d1YEU=
 ergo.services/ergo v1.999.321-0.20260802125151-c46964d2cb77/go.mod h1:2WcCdXUIZvCfy9Kkac3Sx6V/tB23Mx3yK6xz77hRfbM=
+ergo.services/ergo v1.999.321-0.20260831113538-a239e49b0c31 h1:v7MwrUG39wCfwCmnTF268KotgsC6M9WXJKoekA+t5Ck=
+ergo.services/ergo v1.999.321-0.20260831113538-a239e49b0c31/go.mod h1:2WcCdXUIZvCfy9Kkac3Sx6V/tB23Mx3yK6xz77hRfbM=
+ergo.services/ergo v1.999.321-0.20260831132002-e36ca64a2801 h1:0QQLbEQ4AcRj67zwtJ4ESYf7BIHMbmXuELmzHCDLgzI=
+ergo.services/ergo v1.999.321-0.20260831132002-e36ca64a2801/go.mod h1:2WcCdXUIZvCfy9Kkac3Sx6V/tB23Mx3yK6xz77hRfbM=
 github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
 github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0 h1:bkypFPDjIYGfCYD5mRBvpqxfYX1YCS1PXdKYWi8FsN0=

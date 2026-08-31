@@ -1,6 +1,8 @@
 package observer
 
 import (
+	"errors"
+
 	"ergo.services/ergo/act"
 	"ergo.services/ergo/gen"
 )
@@ -9,17 +11,19 @@ func factory_sup() gen.ProcessBehavior {
 	return &sup{}
 }
 
-// sup supervises the observer components. OneForOne: a component that dies is
-// restarted on its own. They are decoupled by registered name (web routes to
-// managerName/poolName by name), so restarting one does not require restarting
-// the others. On a crash loop beyond the restart intensity the supervisor
-// terminates and the permanent application stops; bringing it back is left to
-// the surrounding orchestration.
+// beyond the restart intensity the supervisor terminates and the permanent application stops,
+// leaving recovery to the surrounding orchestration
 type sup struct {
 	act.Supervisor
 }
 
 func (s *sup) Init(args ...any) (act.SupervisorSpec, error) {
+	listeners, _ := s.Env(envListeners)
+	endpoints, ok := listeners.([]Listener)
+	if ok == false || len(endpoints) == 0 {
+		return act.SupervisorSpec{}, errors.New("no listener to serve")
+	}
+
 	spec := act.SupervisorSpec{
 		Type: act.SupervisorTypeOneForOne,
 		Children: []act.SupervisorChildSpec{
@@ -32,10 +36,17 @@ func (s *sup) Init(args ...any) (act.SupervisorSpec, error) {
 				Factory: factory_post_pool,
 			},
 			{
-				Name:    webName,
-				Factory: factory_web,
+				Name:    clusterName,
+				Factory: factory_cluster,
 			},
 		},
+	}
+	for _, endpoint := range endpoints {
+		spec.Children = append(spec.Children, act.SupervisorChildSpec{
+			Name:    webName(endpoint.Port),
+			Factory: factory_web,
+			Args:    []any{endpoint},
+		})
 	}
 	spec.Restart.Strategy = act.SupervisorStrategyPermanent
 	return spec, nil
