@@ -1,9 +1,9 @@
-ergo.services/actor/health v0.0.0-20260831133901-8fd1b68a866c h1:+BKB2UbaSMI/LygyO7Jry8JdT3ImlMcMshxBwQ9Y6pc=
-ergo.services/actor/health v0.0.0-20260831133901-8fd1b68a866c/go.mod h1:Z676C14ydJvKpdm2rajO8CWSTHx7qRImF0jzqOpI9F8=
-ergo.services/actor/metrics v0.2.2-0.20260831133901-8fd1b68a866c h1:6gi0Fd/LPX023Uyq/1ffZEulh/v+MM2BEbQWtLOHib0=
-ergo.services/actor/metrics v0.2.2-0.20260831133901-8fd1b68a866c/go.mod h1:1ljAE7iHwHAxHhQyoLmh+heWgVG9jZx6ReDA4Xl+dLQ=
-ergo.services/ergo v1.999.321-0.20260831132002-e36ca64a2801 h1:0QQLbEQ4AcRj67zwtJ4ESYf7BIHMbmXuELmzHCDLgzI=
-ergo.services/ergo v1.999.321-0.20260831132002-e36ca64a2801/go.mod h1:2WcCdXUIZvCfy9Kkac3Sx6V/tB23Mx3yK6xz77hRfbM=
+ergo.services/actor/health v0.0.0-20260901122346-665cd8fa474c h1:mFCEvO0/3UpI2oXgY8BqnFKITJ0Pvxjoz8jrCOcGNJQ=
+ergo.services/actor/health v0.0.0-20260901122346-665cd8fa474c/go.mod h1:u75B4ER5PQDp0ru+wjbZJCyU8gCs4petBY9p6nhBE1Q=
+ergo.services/actor/metrics v0.2.2-0.20260901122346-665cd8fa474c h1:ZyoC60et43SWCQzDAFI0zRDUBt0LgvdOh6s6oOBoJ6c=
+ergo.services/actor/metrics v0.2.2-0.20260901122346-665cd8fa474c/go.mod h1:SlPvEhC3Wg5W2mp3dysEWOQb85c7WOlZAr2Igw0+tbA=
+ergo.services/ergo v1.999.321-0.20260901122121-9b4168dab6c3 h1:1Mmk7OFRwOG2LCnzyHhfJx9AuRr1WMNReOwiaLq2/Wk=
+ergo.services/ergo v1.999.321-0.20260901122121-9b4168dab6c3/go.mod h1:2WcCdXUIZvCfy9Kkac3Sx6V/tB23Mx3yK6xz77hRfbM=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
