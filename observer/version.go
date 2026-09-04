@@ -24,11 +24,9 @@ func init() {
 			if dep.Replace != nil {
 				v = dep.Replace.Version
 			}
-			// skip empty or local replace markers
 			if v == "" || v == "(devel)" {
 				return
 			}
-			// pseudo-version: "v0.0.0-20260324112233-abc1234def56" → extract hash
 			if parts := strings.Split(v, "-"); len(parts) == 3 {
 				Version.Commit = parts[2]
 			} else {

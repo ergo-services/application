@@ -1,0 +1,79 @@
+{
+  "title": "Ergo Tracing",
+  "uid": "ergo-tracing",
+  "editable": true,
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "refresh": "10s",
+  "templating": {
+    "list": [
+      {
+        "name": "query",
+        "type": "textbox",
+        "label": "TraceQL",
+        "current": { "text": "", "value": "" },
+        "description": "TraceQL filter. Examples: resource.service.name =~ \".*node3.*\" | .ergo.kind = \"request\" | .ergo.behavior = \"my_actor\" | name =~ \".*PingRequest.*\" | status = error"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Trace Search",
+      "type": "table",
+      "gridPos": { "h": 30, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "tempo", "uid": "${DS_TEMPO}" },
+      "targets": [
+        {
+          "queryType": "traceql",
+          "query": "{ ${query:raw} } | select(resource.service.name, .ergo.kind, .ergo.behavior, .ergo.message)",
+          "limit": 50
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          { "displayName": "Start time", "desc": true }
+        ]
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "auto" }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Trace ID" },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View trace",
+                    "url": "/explore?schemaVersion=1&panes={\"bps\":{\"datasource\":\"${DS_TEMPO}\",\"queries\":[{\"refId\":\"A\",\"queryType\":\"traceql\",\"query\":\"${__data.fields.traceID}\"}]}}&orgId=1",
+                    "targetBlank": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "description": "Finds traces containing matching spans. Empty filter = all traces. Click Trace ID to open waterfall."
+    }
+  ],
+  "__inputs": [
+    {
+      "name": "DS_TEMPO",
+      "label": "Tempo",
+      "description": "Tempo datasource for trace queries",
+      "type": "datasource",
+      "pluginId": "tempo",
+      "pluginName": "Tempo"
+    }
+  ]
+}
