@@ -9,7 +9,7 @@ import (
 
 var Version = gen.Version{
 	Name:    "Observer Application",
-	Release: "0.2.0",
+	Release: "0.2.1",
 	License: gen.LicenseMIT,
 }
 
