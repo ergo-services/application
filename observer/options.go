@@ -66,6 +66,10 @@ type Options struct {
 	// Port for HTTP listener. Default: 9911. Refused at start when Listeners is set.
 	Port uint16
 
+	// Path is the prefix everything is served under: the bundle, /sse and /api. Empty
+	// means the root. Refused at start when Listeners is set.
+	Path string
+
 	// PoolSize is the number of POST request workers. Default: 25
 	PoolSize int
 
@@ -131,6 +135,11 @@ type Listener struct {
 
 	// Port to bind. Required, and unique among the listeners.
 	Port uint16
+
+	// Path is the prefix this listener serves everything under -- the bundle, /sse and /api
+	// alike -- for a listener behind a proxy that passes the path through. Leading slash, no
+	// trailing one: "/observability". Empty means the root.
+	Path string
 
 	// CertManager serves this listener over TLS. Nil means plain HTTP.
 	CertManager gen.CertManager
@@ -322,6 +331,22 @@ func validWildcard(port uint16, host string) error {
 	return nil
 }
 
+func normalizeMountPath(path string) (string, error) {
+	if path == "" || path == "/" {
+		return "", nil
+	}
+	if strings.HasPrefix(path, "/") == false {
+		return "", fmt.Errorf("path %q has to start with a slash", path)
+	}
+	if strings.ContainsAny(path, "?#") {
+		return "", fmt.Errorf("path %q is a path, not a url", path)
+	}
+	if strings.Contains(path, "//") || strings.Contains(path, "/../") || strings.HasSuffix(path, "/..") {
+		return "", fmt.Errorf("path %q is not clean", path)
+	}
+	return strings.TrimRight(path, "/"), nil
+}
+
 func (o Options) listeners() ([]Listener, error) {
 	if len(o.Listeners) == 0 {
 		host := o.Host
@@ -335,11 +360,17 @@ func (o Options) listeners() ([]Listener, error) {
 		single := withLimits(Listener{
 			Host:           host,
 			Port:           port,
+			Path:           o.Path,
 			Authorizer:     o.Authorizer,
 			Ceiling:        o.Ceiling,
 			RateLimit:      o.RateLimit,
 			AllowedOrigins: o.AllowedOrigins,
 		})
+		path, err := normalizeMountPath(single.Path)
+		if err != nil {
+			return nil, fmt.Errorf("observer: %w", err)
+		}
+		single.Path = path
 		if err := valid(single); err != nil {
 			return nil, err
 		}
@@ -347,8 +378,20 @@ func (o Options) listeners() ([]Listener, error) {
 		return []Listener{single}, nil
 	}
 
-	if o.Port != 0 || o.Host != "" || o.Authorizer != nil || o.RateLimit != 0 || len(o.AllowedOrigins) > 0 {
-		return nil, errors.New("observer: Host, Port, Authorizer, RateLimit and AllowedOrigins belong to a Listener when Listeners is set")
+	for _, field := range []struct {
+		name string
+		set  bool
+	}{
+		{"Host", o.Host != ""},
+		{"Port", o.Port != 0},
+		{"Path", o.Path != ""},
+		{"Authorizer", o.Authorizer != nil},
+		{"RateLimit", o.RateLimit != 0},
+		{"AllowedOrigins", len(o.AllowedOrigins) > 0},
+	} {
+		if field.set {
+			return nil, fmt.Errorf("observer: %s belongs to a Listener when Listeners is set", field.name)
+		}
 	}
 
 	taken := make(map[uint16]bool, len(o.Listeners))
@@ -366,6 +409,11 @@ func (o Options) listeners() ([]Listener, error) {
 		if l.Host == "" {
 			l.Host = defaultHost
 		}
+		path, err := normalizeMountPath(l.Path)
+		if err != nil {
+			return nil, fmt.Errorf("observer: listener on port %d: %w", l.Port, err)
+		}
+		l.Path = path
 		l.Name = listenerName(l)
 		l = withLimits(l)
 		if err := valid(l); err != nil {

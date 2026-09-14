@@ -168,6 +168,14 @@ func (s *session) push(event string, data []byte) {
 }
 
 func (s *session) HandleCall(from gen.PID, ref gen.Ref, request any) (any, error) {
+	result, err := s.handleRequest(from, ref, request)
+	if remoteCaller(from, s.node) {
+		return remoteResponse(result), err
+	}
+	return result, err
+}
+
+func (s *session) handleRequest(from gen.PID, ref gen.Ref, request any) (any, error) {
 	switch r := request.(type) {
 	case commandRequest:
 		if refused := s.notMine(r.Subject); refused != nil {
@@ -1050,7 +1058,33 @@ func (s *session) finishSubscribe(m subscribeResolved) {
 	s.reply(m.from, m.ref, apiResponse{OK: true, Data: wireSubscribed{Key: m.handle}})
 }
 
+func remoteCaller(from gen.PID, local gen.Atom) bool {
+	return from.Node != "" && from.Node != local
+}
+
+func remoteResponse(response any) any {
+	resp, ok := response.(apiResponse)
+	if ok == false {
+		return response
+	}
+
+	out := apiResponseRemote{OK: resp.OK, Error: resp.Error}
+	if resp.Data == nil {
+		return out
+	}
+
+	data, err := json.Marshal(resp.Data)
+	if err != nil {
+		return apiResponseRemote{Error: fmt.Sprintf("cannot pack the answer: %s", err)}
+	}
+	out.Data = data
+	return out
+}
+
 func (s *session) reply(to gen.PID, ref gen.Ref, response any) {
+	if remoteCaller(to, s.node) {
+		response = remoteResponse(response)
+	}
 	if err := s.SendResponse(to, ref, response); err != nil {
 		s.dropped["reply_failed"]++
 		s.Log().Warning("session %s: reply to %s failed: %s", s.id, to, err)

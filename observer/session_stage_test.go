@@ -22,6 +22,7 @@ type browser struct {
 	t         *testing.T
 	base      string
 	sessionID string
+	node      gen.Atom
 	headers   map[string]string
 
 	events chan streamed
@@ -111,8 +112,9 @@ func openBrowserAs(t *testing.T, port uint16, headers map[string]string) *browse
 
 	intro := b.wait("connected", 5*time.Second)
 	var payload struct {
-		SessionID string `json:"SessionID"`
-		Contract  int    `json:"Contract"`
+		SessionID string   `json:"SessionID"`
+		Contract  int      `json:"Contract"`
+		Node      nodeDesc `json:"Node"`
 	}
 	if err := json.Unmarshal(intro, &payload); err != nil {
 		t.Fatalf("connected payload: %s", err)
@@ -121,6 +123,7 @@ func openBrowserAs(t *testing.T, port uint16, headers map[string]string) *browse
 		t.Fatalf("the browser was told contract %d, want %d", payload.Contract, wireContractVersion)
 	}
 	b.sessionID = payload.SessionID
+	b.node = payload.Node.Name
 	return b
 }
 

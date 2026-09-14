@@ -10,7 +10,7 @@ import (
 	"ergo.services/ergo/gen"
 )
 
-const corsRequestHeaders = "Content-Type, X-Observer-Session, Last-Event-ID, Authorization"
+const corsRequestHeaders = "Content-Type, X-Observer-Session, X-Observer-Node, Last-Event-ID, Authorization"
 
 const corsMaxAge = "600" // seconds
 

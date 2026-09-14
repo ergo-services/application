@@ -63,6 +63,13 @@ func (a *observerApp) Load(args ...any) (gen.ApplicationSpec, error) {
 			envJobLimit:           a.options.JobLimit,
 			envClusterLensOptions: a.options.ClusterLens,
 		},
+		Network: gen.ApplicationNetwork{
+			RegisterTypes: []any{
+				commandRequest{},
+				actionRequest{},
+				apiResponseRemote{},
+			},
+		},
 		Group: []gen.ApplicationMemberSpec{
 			{
 				Name:    supName,

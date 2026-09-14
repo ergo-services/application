@@ -81,8 +81,8 @@ func (w *web) Init(args ...any) error {
 		return err
 	}
 
-	w.Log().Info("listener %q %s:%d surfaces=%s authorizer=%s ceiling=%s origins=%d ratelimit=%d",
-		w.listener.Name, w.listener.Host, w.listener.Port, strings.Join(w.surfaces(), ","),
+	w.Log().Info("listener %q %s:%d%s surfaces=%s authorizer=%s ceiling=%s origins=%d ratelimit=%d",
+		w.listener.Name, w.listener.Host, w.listener.Port, w.listener.Path, strings.Join(w.surfaces(), ","),
 		yesno(w.listener.Authorizer != nil), describeCeiling(w.listener.Ceiling),
 		len(w.listener.AllowedOrigins), w.listener.RateLimit)
 	return nil
@@ -157,7 +157,7 @@ func (w *web) route() error {
 
 	if w.listener.UI.Disable == false {
 		fsroot, _ := fs.Sub(assets, "web")
-		w.mux.HandleFunc("/", gzipFileServer(fsroot, w.refusals))
+		w.mux.HandleFunc("/", gzipFileServer(fsroot, w.refusals, w.listener.Path))
 	}
 	return nil
 }
@@ -212,7 +212,7 @@ func (w *web) HandleInspect(from gen.PID, item ...string) map[string]string {
 	if len(item) == 0 {
 		return map[string]string{
 			"listener":        w.listener.Name,
-			"address":         fmt.Sprintf("%s:%d", w.listener.Host, w.listener.Port),
+			"address":         fmt.Sprintf("%s:%d%s", w.listener.Host, w.listener.Port, w.listener.Path),
 			"tls":             yesno(w.listener.CertManager != nil),
 			"surfaces":        strings.Join(w.surfaces(), ","),
 			"authorizer":      yesno(w.listener.Authorizer != nil),
@@ -357,7 +357,7 @@ func (w *web) startServer() error {
 		Host:        w.listener.Host,
 		CertManager: w.listener.CertManager,
 		Handler: originGuard{
-			next:    cors{next: w.mux, origins: w.listener.AllowedOrigins},
+			next:    cors{next: mountAt(w.listener.Path, w.mux), origins: w.listener.AllowedOrigins},
 			origins: w.listener.AllowedOrigins,
 			host:    w.listener.Host,
 			port:    w.listener.Port,
@@ -407,7 +407,9 @@ func (s *swapHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 	box.h.ServeHTTP(writer, request)
 }
 
-func gzipFileServer(fsys fs.FS, counts *refusalCounts) http.HandlerFunc {
+func gzipFileServer(fsys fs.FS, counts *refusalCounts, mount string) http.HandlerFunc {
+	index := indexWithBase(fsys, mount)
+
 	contentTypes := map[string]string{
 		".js":   "application/javascript",
 		".css":  "text/css",
@@ -473,15 +475,71 @@ func gzipFileServer(fsys fs.FS, counts *refusalCounts) http.HandlerFunc {
 		}
 
 		gzipped := acceptsGzip(r)
+		if path == "index.html" && index != nil {
+			serve(w, path, index, false)
+			return
+		}
 		if send(w, path, gzipped) {
 			return
 		}
-		if path != "index.html" && send(w, "index.html", gzipped) {
-			return
+		if path != "index.html" {
+			if index != nil {
+				serve(w, "index.html", index, false)
+				return
+			}
+			if send(w, "index.html", gzipped) {
+				return
+			}
 		}
 
 		http.Error(w, "not found", http.StatusNotFound)
 	}
+}
+
+func indexWithBase(fsys fs.FS, mount string) []byte {
+	if fsys == nil {
+		return nil
+	}
+
+	data, err := fs.ReadFile(fsys, "index.html")
+	if err != nil {
+		packed, err := fs.ReadFile(fsys, "index.html.gz")
+		if err != nil {
+			return nil
+		}
+		if data, err = gunzip(packed); err != nil {
+			return nil
+		}
+	}
+
+	tag := fmt.Sprintf("\n    <base href=%q>", mount+"/")
+
+	marker := []byte("<head>")
+	at := bytes.Index(data, marker)
+	if at < 0 {
+		return nil
+	}
+	at += len(marker)
+
+	out := make([]byte, 0, len(data)+len(tag))
+	out = append(out, data[:at]...)
+	out = append(out, tag...)
+	out = append(out, data[at:]...)
+	return out
+}
+
+func mountAt(mount string, h http.Handler) http.Handler {
+	if mount == "" {
+		return h
+	}
+	stripped := http.StripPrefix(mount, h)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == mount {
+			http.Redirect(w, r, mount+"/", http.StatusMovedPermanently)
+			return
+		}
+		stripped.ServeHTTP(w, r)
+	})
 }
 
 func gunzip(data []byte) ([]byte, error) {

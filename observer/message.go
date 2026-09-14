@@ -13,6 +13,12 @@ type apiResponse struct {
 	Data  any    `json:"data,omitempty"`
 }
 
+type apiResponseRemote struct {
+	OK    bool
+	Error string
+	Data  []byte
+}
+
 // EnrollRequest asks the manager to confirm that this observer holds the enrollment
 // secret. The secret burns on the first success.
 type EnrollRequest struct {

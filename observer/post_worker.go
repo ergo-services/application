@@ -51,13 +51,17 @@ func (w *postWorker) HandlePost(from gen.PID, writer http.ResponseWriter, reques
 		writeJSON(writer, request, http.StatusUnauthorized, apiResponse{Error: "missing X-Observer-Session"})
 		return nil
 	}
-	sessionName := gen.Atom("observer_session_" + sessionID)
+	name := gen.Atom("observer_session_" + sessionID)
+	var session any = name
+	if node := gen.Atom(request.Header.Get("X-Observer-Node")); node != "" && node != w.Node().Name() {
+		session = gen.ProcessID{Name: name, Node: node}
+	}
 
 	switch {
 	case path == "/api/subscribe" || path == "/api/unsubscribe" || path == "/api/switch":
-		w.handleCommand(writer, request, sessionName, path, body)
+		w.handleCommand(writer, request, session, path, body)
 	case strings.HasPrefix(path, "/api/do/"):
-		w.handleAction(writer, request, sessionName, strings.TrimPrefix(path, "/api/do/"), body)
+		w.handleAction(writer, request, session, strings.TrimPrefix(path, "/api/do/"), body)
 	default:
 		writeJSON(writer, request, http.StatusNotFound, apiResponse{Error: "not found"})
 	}
@@ -161,7 +165,7 @@ func (w *postWorker) call(identity Identity, target gen.Atom, action string, arg
 	return actionResponse(result, identity.Ceiling)
 }
 
-func (w *postWorker) handleCommand(writer http.ResponseWriter, request *http.Request, session gen.Atom, path string, body []byte) {
+func (w *postWorker) handleCommand(writer http.ResponseWriter, request *http.Request, session any, path string, body []byte) {
 	var req struct {
 		Type   string         `json:"type"`
 		Args   map[string]any `json:"args"`
@@ -208,7 +212,7 @@ func (w *postWorker) handleCommand(writer http.ResponseWriter, request *http.Req
 		return
 	}
 
-	resp, ok := result.(apiResponse)
+	resp, ok := unpackResponse(result)
 	if ok == false {
 		writeJSON(writer, request, http.StatusInternalServerError, apiResponse{Error: "unexpected response"})
 		return
@@ -220,7 +224,21 @@ func (w *postWorker) handleCommand(writer http.ResponseWriter, request *http.Req
 	writeJSON(writer, request, http.StatusOK, resp)
 }
 
-func (w *postWorker) handleAction(writer http.ResponseWriter, request *http.Request, session gen.Atom, action string, body []byte) {
+func unpackResponse(result any) (apiResponse, bool) {
+	switch r := result.(type) {
+	case apiResponse:
+		return r, true
+	case apiResponseRemote:
+		out := apiResponse{OK: r.OK, Error: r.Error}
+		if len(r.Data) > 0 {
+			out.Data = json.RawMessage(r.Data)
+		}
+		return out, true
+	}
+	return apiResponse{}, false
+}
+
+func (w *postWorker) handleAction(writer http.ResponseWriter, request *http.Request, session any, action string, body []byte) {
 	if action == "" {
 		writeJSON(writer, request, http.StatusBadRequest, apiResponse{Error: "missing action"})
 		return
@@ -240,7 +258,7 @@ func (w *postWorker) handleAction(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 
-	resp, ok := result.(apiResponse)
+	resp, ok := unpackResponse(result)
 	if ok == false {
 		writeJSON(writer, request, http.StatusInternalServerError, apiResponse{Error: "unexpected response"})
 		return

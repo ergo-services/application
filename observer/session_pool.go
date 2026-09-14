@@ -190,6 +190,9 @@ func (w *sessionWorker) handBack(resolved any, from gen.PID, ref gen.Ref) {
 }
 
 func (w *sessionWorker) answer(to gen.PID, ref gen.Ref, response any) {
+	if remoteCaller(to, w.Node().Name()) {
+		response = remoteResponse(response)
+	}
 	if err := w.SendResponse(to, ref, response); err != nil {
 		w.Log().Error("session worker %s: reply to %s failed: %s", w.spec.id, to, err)
 	}

@@ -175,7 +175,7 @@ func TestOriginGuardWithoutAllowedOrigins(t *testing.T) {
 // the fallback answers every unknown path with index.html, so a POST must not look accepted
 func TestStaticServesReadsOnly(t *testing.T) {
 	counts := &refusalCounts{}
-	handler := gzipFileServer(nil, counts)
+	handler := gzipFileServer(nil, counts, "")
 
 	for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodDelete} {
 		recorder := httptest.NewRecorder()
@@ -203,7 +203,7 @@ func TestStaticHonoursAcceptEncoding(t *testing.T) {
 
 	handler := gzipFileServer(fstest.MapFS{
 		"index.html.gz": &fstest.MapFile{Data: packed.Bytes()},
-	}, &refusalCounts{})
+	}, &refusalCounts{}, "")
 
 	for _, c := range []struct {
 		what     string
