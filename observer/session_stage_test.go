@@ -114,7 +114,7 @@ func openBrowserAs(t *testing.T, port uint16, headers map[string]string) *browse
 	var payload struct {
 		SessionID string   `json:"SessionID"`
 		Contract  int      `json:"Contract"`
-		Node      nodeDesc `json:"Node"`
+		Observer  gen.Atom `json:"Observer"`
 	}
 	if err := json.Unmarshal(intro, &payload); err != nil {
 		t.Fatalf("connected payload: %s", err)
@@ -123,7 +123,7 @@ func openBrowserAs(t *testing.T, port uint16, headers map[string]string) *browse
 		t.Fatalf("the browser was told contract %d, want %d", payload.Contract, wireContractVersion)
 	}
 	b.sessionID = payload.SessionID
-	b.node = payload.Node.Name
+	b.node = payload.Observer
 	return b
 }
 

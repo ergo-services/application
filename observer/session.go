@@ -169,7 +169,7 @@ func (s *session) push(event string, data []byte) {
 
 func (s *session) HandleCall(from gen.PID, ref gen.Ref, request any) (any, error) {
 	result, err := s.handleRequest(from, ref, request)
-	if remoteCaller(from, s.node) {
+	if remoteCaller(from, s.Node().Name()) {
 		return remoteResponse(result), err
 	}
 	return result, err
@@ -1082,7 +1082,7 @@ func remoteResponse(response any) any {
 }
 
 func (s *session) reply(to gen.PID, ref gen.Ref, response any) {
-	if remoteCaller(to, s.node) {
+	if remoteCaller(to, s.Node().Name()) {
 		response = remoteResponse(response)
 	}
 	if err := s.SendResponse(to, ref, response); err != nil {
@@ -1287,12 +1287,14 @@ func (s *session) sendConnectedEvent() {
 	intro := struct {
 		SessionID string      `json:"SessionID"`
 		Contract  int         `json:"Contract"`
+		Observer  gen.Atom    `json:"Observer"`
 		Node      nodeDesc    `json:"Node"`
 		Nodes     []nodeDesc  `json:"Nodes"`
 		Version   wireVersion `json:"Version"`
 	}{
 		Contract:  wireContractVersion,
 		SessionID: s.id,
+		Observer:  s.Node().Name(),
 		Node:      nodeDesc{Name: s.node, CRC32: s.node.CRC32(), Connected: true},
 		Nodes:     nodes,
 		Version:   wireVersionFrom(Version),

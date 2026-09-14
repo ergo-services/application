@@ -81,6 +81,48 @@ func TestSessionCommandReachesTheObserverHoldingTheStream(t *testing.T) {
 	b.wait("node_meta", 10*time.Second)
 }
 
+func TestSessionKeepsWorkingAfterSwitch(t *testing.T) {
+	s := stage.New(t, stage.StageOptions{RegistrarFull: true})
+
+	port := freePort(t)
+	s.StartNode("obs_switch", stage.NodeOptions{
+		EnableSystemApp: true,
+		Applications: []gen.ApplicationBehavior{
+			CreateApp(Options{Port: port, Host: "localhost"}),
+		},
+	})
+	peer := s.StartNode("peer_switch", stage.NodeOptions{EnableSystemApp: true})
+
+	b := openBrowser(t, port)
+	observer := b.node
+
+	answer := b.post("/api/switch", map[string]any{"node": string(peer.Native().Name())})
+	if answer.OK == false {
+		t.Fatalf("switch refused: %s", answer.Error)
+	}
+
+	var after struct {
+		Observer gen.Atom `json:"Observer"`
+		Node     nodeDesc `json:"Node"`
+	}
+	if err := json.Unmarshal(b.wait("connected", 10*time.Second), &after); err != nil {
+		t.Fatalf("connected after the switch: %s", err)
+	}
+	if after.Node.Name != peer.Native().Name() {
+		t.Fatalf("observing %q after the switch, want %q", after.Node.Name, peer.Native().Name())
+	}
+	if after.Observer != observer {
+		t.Fatalf("the browser was told observer %q, want %q", after.Observer, observer)
+	}
+	b.node = after.Observer
+
+	status, subscribed := b.postVia(port, "/api/subscribe",
+		map[string]any{"type": "node_info", "args": map[string]any{}})
+	if status != http.StatusOK || subscribed.OK == false {
+		t.Fatalf("subscribe after a switch answered %d: %s", status, subscribed.Error)
+	}
+}
+
 func TestSessionCommandForUnknownNodeIsRefused(t *testing.T) {
 	s := stage.New(t, stage.StageOptions{RegistrarFull: true})
 
