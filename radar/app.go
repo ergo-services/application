@@ -58,6 +58,7 @@ func (a *radarApp) Load(args ...any) (gen.ApplicationSpec, error) {
 	return gen.ApplicationSpec{
 		Name:        Name,
 		Description: "Prometheus metrics exporter and health check endpoints",
+		Version:     Version,
 		Env:         env,
 		// Both actors refuse to start without their wire types on the node, and
 		// ApplicationLoad runs before any of this application's processes spawn.

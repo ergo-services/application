@@ -6,8 +6,7 @@ import (
 )
 
 const (
-	Name    gen.Atom = "pulse"
-	Version          = "0.1.0"
+	Name gen.Atom = "pulse"
 
 	poolName gen.Atom = "pulse_pool"
 )
@@ -26,11 +25,8 @@ func (a *pulseApp) Load(args ...any) (gen.ApplicationSpec, error) {
 	return gen.ApplicationSpec{
 		Name:        Name,
 		Description: "Pulse OTLP/HTTP Tracing Exporter",
-		Version: gen.Version{
-			Name:    string(Name),
-			Release: Version,
-		},
-		Mode: gen.ApplicationModePermanent,
+		Version:     Version,
+		Mode:        gen.ApplicationModePermanent,
 		Group: []gen.ApplicationMemberSpec{
 			{
 				Name:    poolName,

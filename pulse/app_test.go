@@ -20,8 +20,8 @@ func TestCreateAppLoadsASpecTheNodeCanStart(t *testing.T) {
 	if spec.Mode != gen.ApplicationModePermanent {
 		t.Errorf("Mode = %s, want permanent: the exporter is not optional once registered", spec.Mode)
 	}
-	if spec.Version.Release != Version {
-		t.Errorf("Version = %q, want %q", spec.Version.Release, Version)
+	if spec.Version != Version {
+		t.Errorf("Version = %v, want %v", spec.Version, Version)
 	}
 	if len(spec.Group) != 1 {
 		t.Fatalf("Group has %d members, want the pool alone", len(spec.Group))

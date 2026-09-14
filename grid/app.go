@@ -11,7 +11,6 @@ const (
 	DefaultDomain    gen.Atom = "default"
 	DefaultShards    int      = 8
 	DefaultSeparator string   = "/"
-	Version          string   = "0.1.0"
 )
 
 // Options configures a grid application instance.
@@ -59,7 +58,7 @@ func (a *gridApp) Load(args ...any) (gen.ApplicationSpec, error) {
 	return gen.ApplicationSpec{
 		Name:        name,
 		Description: "Grid AP distributed in-memory store/registry",
-		Version:     gen.Version{Name: string(name), Release: Version},
+		Version:     Version,
 		Mode:        gen.ApplicationModePermanent,
 		Network: gen.ApplicationNetwork{
 			RegisterTypes: []any{

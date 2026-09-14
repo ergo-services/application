@@ -1,4 +1,4 @@
-package observer
+package grid
 
 import (
 	_ "embed"
@@ -12,7 +12,7 @@ import (
 var version string
 
 var Version = gen.Version{
-	Name:    "Observer Application",
+	Name:    "Grid Application",
 	Release: strings.TrimPrefix(strings.TrimSpace(version), "v"),
 	License: gen.LicenseMIT,
 }
@@ -23,7 +23,7 @@ func init() {
 		return
 	}
 	for _, dep := range info.Deps {
-		if dep.Path == "ergo.services/application/observer" {
+		if dep.Path == "ergo.services/application/grid" {
 			v := dep.Version
 			if dep.Replace != nil {
 				v = dep.Replace.Version

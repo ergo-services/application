@@ -103,7 +103,7 @@ func buildExportRequest(spans []gen.TracingSpan, nodeName gen.Atom) *coltracepb.
 					{
 						Scope: &commonpb.InstrumentationScope{
 							Name:    "ergo.services/pulse",
-							Version: Version,
+							Version: Version.Release,
 						},
 						Spans: otlpSpans,
 					},

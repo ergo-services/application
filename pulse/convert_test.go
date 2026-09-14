@@ -308,7 +308,7 @@ func TestBuildExportRequestEnvelope(t *testing.T) {
 		t.Fatalf("ScopeSpans = %d, want 1", len(rs.ScopeSpans))
 	}
 	scope := rs.ScopeSpans[0]
-	if scope.Scope.Name != "ergo.services/pulse" || scope.Scope.Version != Version {
+	if scope.Scope.Name != "ergo.services/pulse" || scope.Scope.Version != Version.Release {
 		t.Errorf("scope = %q/%q", scope.Scope.Name, scope.Scope.Version)
 	}
 	if len(scope.Spans) != 2 {
