@@ -9,7 +9,12 @@ valid_ref() {
 }
 
 module_dirs() {
-    find . -name go.mod -not -path './.git/*' -exec dirname {} \; | sort
+    # A module under example/ is an illustration that builds against its parent through a
+    # replace directive. It is never published, so it is neither tagged nor validated, and
+    # demanding a VERSION of it would fail every run.
+    find . -name go.mod -not -path './.git/*' \
+        -not -path '*/example/*' -not -path '*/examples/*' \
+        -exec dirname {} \; | sort
 }
 
 module_changed() {

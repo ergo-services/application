@@ -55,12 +55,16 @@ func TestSessionCommandReachesTheObserverHoldingTheStream(t *testing.T) {
 			CreateApp(Options{Port: portStream, Host: "localhost"}),
 		},
 	})
-	s.StartNode("obs_other", stage.NodeOptions{
+	other := s.StartNode("obs_other", stage.NodeOptions{
 		EnableSystemApp: true,
 		Applications: []gen.ApplicationBehavior{
 			CreateApp(Options{Port: portOther, Host: "localhost"}),
 		},
 	})
+
+	if _, err := other.Native().Network().GetNode(holder.Native().Name()); err != nil {
+		t.Fatalf("the observers did not connect: %s", err)
+	}
 
 	b := openBrowser(t, portStream)
 
@@ -85,13 +89,17 @@ func TestSessionKeepsWorkingAfterSwitch(t *testing.T) {
 	s := stage.New(t, stage.StageOptions{RegistrarFull: true})
 
 	port := freePort(t)
-	s.StartNode("obs_switch", stage.NodeOptions{
+	host := s.StartNode("obs_switch", stage.NodeOptions{
 		EnableSystemApp: true,
 		Applications: []gen.ApplicationBehavior{
 			CreateApp(Options{Port: port, Host: "localhost"}),
 		},
 	})
 	peer := s.StartNode("peer_switch", stage.NodeOptions{EnableSystemApp: true})
+
+	if _, err := host.Native().Network().GetNode(peer.Native().Name()); err != nil {
+		t.Fatalf("the observer did not reach the peer: %s", err)
+	}
 
 	b := openBrowser(t, port)
 	observer := b.node

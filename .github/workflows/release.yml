@@ -34,7 +34,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: stable
+          # the version each module declares, not the newest one: a module that says
+          # go 1.21 is claiming to build there, and nothing checks that claim if every
+          # job runs on stable. One module's directive must not decide for the others
+          go-version-file: ${{ matrix.module }}/go.mod
           cache-dependency-path: ${{ matrix.module }}/go.sum
       - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
       - run: go vet ./...
